@@ -1,0 +1,21 @@
+set cpp /usr/bin/clang++-10
+set findsrc /home/sixkey/apps/gib/_build/gib.findsrc
+set nochange /home/sixkey/apps/gib/_build/gib.nochange
+set mkdir /bin/mkdir
+
+out manifest.txt
+cmd $(findsrc) $(srcdir) manifest.txt
+
+src src_files src_dirs manifest.txt
+
+out dirs 
+dep manifest.txt
+cmd $(nochange) $(mkdir) -p tmp $(src_dirs)
+
+set all
+
+out main
+dep $(src_files:*)
+cmd $(cpp) --std=c++17 -g -o main $(srcdir)/$(src_files:*.cpp)
+
+add all main

@@ -1,0 +1,7 @@
+*
+!.gitignore
+!gibfile
+!src
+!src/*.cpp
+!src/*.hpp
+
