@@ -7,8 +7,6 @@
 #include "pattern.hpp"
 #include <cassert>
 
-using identifier = std::string;
-
 struct edge {
     pattern_ptr a; 
     pattern_ptr b; 
@@ -127,8 +125,6 @@ class pattern_graph {
             return true;
         return false;
     }
-
-
 
     /** Returns a vector v with at most <max_patterns> patterns s.t. for every pattern 
      *  q in v there exists a function f s.t. f a = b and a is in p and b is in q. **/

@@ -6,6 +6,8 @@
 #include "values.hpp"
 #include <optional>
 
+#include "types.hpp"
+
 // #define PATTERN_DBG_FLAG
 
 #ifdef PATTERN_DBG_FLAG
@@ -84,7 +86,7 @@ struct pattern {
 
 struct variable_pattern : public pattern {
     
-    std::string variable_name;
+    identifier variable_name;
 
     variable_pattern( std::string variable_name ) 
         : pattern( p_variable )
