@@ -1,26 +1,29 @@
 #include <optional>
 #include <string>
 #include <vector>
+#pragma once
+
 #include <variant> 
 #include <memory>
 #include <iostream>
 
 using value_t = int;
+using obj_name_t = std::string;
 
 struct object {
 
-    std::string name; 
+    obj_name_t name; 
     std::vector< object > values;
     value_t hidden_value = false;
     bool primitive = false;
 
     object() {}
 
-    object( std::string name, std::vector< object > values ) 
+    object( obj_name_t name, std::vector< object > values ) 
         : name( std::move( name ) )
         , values( std::move( values ) ) {}
 
-    object( std::string name, value_t hidden_value ) 
+    object( obj_name_t name, value_t hidden_value ) 
         : name( std::move( name ) )
         , hidden_value( std::move( hidden_value ) )
         , primitive( true ) {}

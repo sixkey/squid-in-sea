@@ -11,15 +11,15 @@ std::ostream& operator<<( std::ostream &out, const matching_t &m ) {
 }
 
 
-bool literal_pattern::contains( pattern& p ) const
+bool literal_pattern::contains( const pattern& p ) const
 {
-    if ( variable_pattern* v = dynamic_cast< variable_pattern* > ( &p ); v != nullptr ) {
+    if ( auto v = dynamic_cast< const variable_pattern* > ( &p ); v != nullptr ) {
         return false;
     }
-    if ( literal_pattern* v = dynamic_cast< literal_pattern* > ( &p ); v != nullptr ) {
+    if ( auto v = dynamic_cast< const literal_pattern* > ( &p ); v != nullptr ) {
         return v->name == name && v->value == value;
     }
-    if ( object_pattern* v = dynamic_cast< object_pattern* > ( &p ); v != nullptr )
+    if ( auto v = dynamic_cast< const object_pattern* > ( &p ); v != nullptr )
     {
         if ( v->name == name && v->patterns.size() == 1 ) {
             return p.contains( *v->patterns[ 0 ] );
@@ -29,17 +29,17 @@ bool literal_pattern::contains( pattern& p ) const
     assert( false );
 }
 
-bool object_pattern::contains( pattern& p ) const
+bool object_pattern::contains( const pattern& p ) const
 {
-    if ( variable_pattern* v = dynamic_cast< variable_pattern* > ( &p ); v != nullptr ) {
+    if ( auto v = dynamic_cast< const variable_pattern* > ( &p ); v != nullptr ) {
         return false;
     }
-    if ( literal_pattern* v = dynamic_cast< literal_pattern* > ( &p ); v != nullptr ) {
+    if ( auto v = dynamic_cast< const literal_pattern* > ( &p ); v != nullptr ) {
         return v->name == name 
             && patterns.size() == 1 
             && patterns[ 0 ]->contains( p );
     }
-    if ( object_pattern* v = dynamic_cast< object_pattern* > ( &p ); v != nullptr ) {
+    if ( auto v = dynamic_cast< const object_pattern* > ( &p ); v != nullptr ) {
         if ( v->name == name && v->patterns.size() == patterns.size() ) {
             for ( int i = 0; i < patterns.size(); i++ )
                 if ( ! patterns[ i ]->contains( *v->patterns[ i ] ) ) 
@@ -148,7 +148,7 @@ void test_contains()
     assert( ! int_a.contains( bool_a ) );
 }
 
-void tests()
+void tests_pattern()
 {
     test_pattern();
     test_contains();

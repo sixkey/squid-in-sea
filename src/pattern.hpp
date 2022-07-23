@@ -1,15 +1,17 @@
+#pragma once
+
 #include <initializer_list>
 #include <iostream>
 #include <map>
 #include "values.hpp"
 #include <optional>
 
-#define PATTERN_DBG_FLAG
+// #define PATTERN_DBG_FLAG
 
 #ifdef PATTERN_DBG_FLAG
     #define P_DBG_RET( x, y ) ( std::cout << this->to_string() << " " << o.to_string() << " : " << y << std::endl, x )
 #else
-    #define P_DBG_RET( x, y ) void
+    #define P_DBG_RET( x, y ) ( x )
 #endif 
 
 using matching_t = std::map< std::string, object >;
@@ -20,6 +22,12 @@ struct object_pattern;
 struct literal_pattern;
 
 using pattern_ptr = std::shared_ptr< pattern >;
+
+enum pattern_type {
+    p_literal, 
+    p_variable, 
+    p_object
+};
 
 class pattern_matching_error : std::exception {
 
@@ -41,20 +49,36 @@ public:
 
 struct pattern {
 
+
+    /**
+     * :person_facepalming:
+     *              -- tesla
+     * **/
+    pattern_type type;
+
+
+    pattern ( pattern_type type ) : type ( type ) {};
+
+    virtual ~pattern() {};
+
+    
     virtual bool pattern_match( 
             matching_t & matching, 
             const object & o ) const = 0;
 
-    virtual std::string to_string() const = 0;
-
     /** A contains B iff and only if every object that matches pattern B also
      *  matches pattern A. **/
         
-    virtual bool contains( pattern& p ) const = 0;
+    virtual bool contains( const pattern& p ) const = 0;
+
+    
+    virtual obj_name_t get_name() const = 0;
+
 
     virtual pattern_ptr clone() const = 0;
 
-    virtual ~pattern() {};
+    virtual std::string to_string() const = 0;
+
 
 };
 
@@ -63,7 +87,8 @@ struct variable_pattern : public pattern {
     std::string variable_name;
 
     variable_pattern( std::string variable_name ) 
-        : variable_name( std::move( variable_name ) ) {}
+        : pattern( p_variable )
+        , variable_name( std::move( variable_name ) ) {}
 
     bool pattern_match( matching_t & matching, const object & o ) const override
     {
@@ -74,13 +99,19 @@ struct variable_pattern : public pattern {
             "multiple variables with the same name not inplemented" );
     }
 
-    bool contains( pattern& p ) const override {
+    bool contains( const pattern& p ) const override {
         return true;
     }
 
+
+    obj_name_t get_name() const override {
+        throw std::runtime_error( "variable pattern does not have a name" );
+    }
+
+
     pattern_ptr clone() const override
     {
-        return std::make_unique< variable_pattern >( *this );
+        return std::make_shared< variable_pattern >( *this );
     }
 
     std::string to_string() const override {
@@ -90,11 +121,12 @@ struct variable_pattern : public pattern {
 
 struct literal_pattern : public pattern {
     
-    std::string name;
+    obj_name_t name;
     value_t value;
 
-    literal_pattern( std::string name, value_t value ) 
-        : name ( name )
+    literal_pattern( obj_name_t name, value_t value ) 
+        : pattern( p_literal )
+        , name ( name )
         , value ( value ) {}
 
     bool pattern_match( matching_t & matching, const object & o ) const override {
@@ -110,12 +142,18 @@ struct literal_pattern : public pattern {
         return true;
     }
 
-    pattern_ptr clone() const override
-    {
-        return std::make_unique< literal_pattern >( *this );
+
+    obj_name_t get_name() const override {
+        return name;
     }
 
-    virtual bool contains( pattern& p ) const override;
+
+    pattern_ptr clone() const override
+    {
+        return std::make_shared< literal_pattern >( *this );
+    }
+
+    virtual bool contains( const pattern& p ) const override;
     
     std::string to_string() const override {
         return name + " " + std::to_string( value );
@@ -124,14 +162,15 @@ struct literal_pattern : public pattern {
 
 struct object_pattern : public pattern {
 
-    std::string name;
+    obj_name_t name;
     std::vector< pattern_ptr > patterns;
 
     object_pattern( 
-            std::string name, 
+            obj_name_t name, 
             std::vector< pattern_ptr > patterns 
             ) 
-        : name( std::move( name ) ), patterns( std::move( patterns ) ) {}
+        : pattern( p_object )
+        , name( std::move( name ) ), patterns( std::move( patterns ) ) {}
 
 
     bool pattern_match( matching_t & matching, const object & o ) const override {
@@ -164,12 +203,18 @@ struct object_pattern : public pattern {
         return true;
     }
 
-    pattern_ptr clone() const override
-    {
-        return std::make_unique< object_pattern >( *this );
+
+    obj_name_t get_name() const override {
+        return name;
     }
 
-    virtual bool contains( pattern& p ) const override;
+
+    pattern_ptr clone() const override
+    {
+        return std::make_shared< object_pattern >( *this );
+    }
+
+    virtual bool contains( const pattern& p ) const override;
 
     std::string to_string() const override {
         std::string res = "( " + name;
@@ -183,4 +228,4 @@ struct object_pattern : public pattern {
 
 };
 
-void tests();
+void tests_pattern();
