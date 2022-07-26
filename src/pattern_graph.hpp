@@ -3,7 +3,7 @@
 #include <map>
 #include <stdexcept>
 #include <vector>
-#include "values.hpp"
+#include "types.hpp"
 #include "pattern.hpp"
 #include <cassert>
 
@@ -13,7 +13,7 @@ struct edge {
     identifier id;
 };
 
-using edges_t = std::multimap< obj_name_t, edge >;
+using edges_t = std::multimap< identifier, edge >;
 using id_path_t = std::vector< identifier >;
 
 
@@ -34,7 +34,7 @@ class pattern_graph {
             return;
         }
 
-        obj_name_t obj_name = p.get_name();
+        identifier obj_name = p.get_name();
         _edges.insert( { obj_name, e } );
     }
 
@@ -137,7 +137,6 @@ class pattern_graph {
                 bundle, reachable_step );
         return std::move( bundle.second );
     }
-
 
 };
 

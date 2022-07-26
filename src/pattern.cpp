@@ -1,15 +1,6 @@
+#include <assert.h> 
+
 #include "pattern.hpp"
-#include <assert.h>
-
-std::ostream& operator<<( std::ostream &out, const matching_t &m ) {
-    out << "{\n";
-    for ( auto [ key, val ] : m ) {
-        out << " " << key << ": " << val << ",\n";
-    }
-    out << "}";
-    return out;
-}
-
 
 bool literal_pattern::contains( const pattern& p ) const
 {
@@ -51,77 +42,76 @@ bool object_pattern::contains( const pattern& p ) const
     assert( false );
 }
 
+/*void test_pattern ()*/
+/*{*/
 
-void test_pattern ()
-{
+    /*auto basic_test = [] ( const pattern &p, const object &o, const matching_t &m ) {*/
+        /*matching_t rm = {};*/
+        /*if ( !p.pattern_match( rm, o ) ) */
+        /*{*/
+            /*std::cout << p.to_string() << " " << o.to_string() << std::endl;*/
+            /*assert( false );*/
+        /*}*/
+        /*assert( rm == m );*/
+    /*};*/
 
-    auto basic_test = [] ( const pattern &p, const object &o, const matching_t &m ) {
-        matching_t rm = {};
-        if ( !p.pattern_match( rm, o ) ) 
-        {
-            std::cout << p.to_string() << " " << o.to_string() << std::endl;
-            assert( false );
-        }
-        assert( rm == m );
-    };
+    /*auto fail_test = [] ( const pattern &p, const object &o ) {*/
+        /*matching_t rm = {};*/
+        /*assert( !p.pattern_match( rm, o ) );*/
+    /*};*/
 
-    auto fail_test = [] ( const pattern &p, const object &o ) {
-        matching_t rm = {};
-        assert( !p.pattern_match( rm, o ) );
-    };
+    /*basic_test( */
+        /*literal_pattern( "Int", 3 ),    */
+        /*object( "Int", 3 ), */
+        /*matching_t()*/
+    /*);*/
 
-    basic_test( 
-        literal_pattern( "Int", 3 ),    
-        object( "Int", 3 ), 
-        matching_t()
-    );
+    /*fail_test(*/
+        /*literal_pattern( "Int", 3 ),    */
+        /*object( "Int", 5 )*/
+    /*);*/
 
-    fail_test(
-        literal_pattern( "Int", 3 ),    
-        object( "Int", 5 )
-    );
+    /*{*/
+        /*std::vector< pattern_ptr > patterns;*/
+        /*patterns.push_back( std::make_unique< literal_pattern >( "Int", 3 ) );*/
+        /*patterns.push_back( std::make_unique< literal_pattern >( "Int", 5 ) );*/
+        /*object_pattern p = object_pattern( "Point", std::move( patterns ) );*/
 
-    {
-        std::vector< pattern_ptr > patterns;
-        patterns.push_back( std::make_unique< literal_pattern >( "Int", 3 ) );
-        patterns.push_back( std::make_unique< literal_pattern >( "Int", 5 ) );
-        object_pattern p = object_pattern( "Point", std::move( patterns ) );
+        /*basic_test(*/
+            /*p,*/
+            /*object( "Point", { */
+                /*object( "Int", 3 ), */
+                /*object( "Int", 5 ) */
+            /*} ), */
+            /*matching_t()*/
+        /*);*/
 
-        basic_test(
-            p,
-            object( "Point", { 
-                object( "Int", 3 ), 
-                object( "Int", 5 ) 
-            } ), 
-            matching_t()
-        );
+        /*fail_test( */
+            /*p,*/
+            /*object( "Point", { */
+                /*object( "Int", 3 ), */
+                /*object( "Int", 4 ) */
+            /*} )*/
+        /*);*/
+    /*}*/
 
-        fail_test( 
-            p,
-            object( "Point", { 
-                object( "Int", 3 ), 
-                object( "Int", 4 ) 
-            } )
-        );
-    }
+    /*basic_test(*/
+        /*variable_pattern( "n" ),*/
+        /*object( "Int", 3 ), */
+        /*{ { "n", object( "Int", 3 ) } }*/
+    /*);*/
 
-    basic_test(
-        variable_pattern( "n" ),
-        object( "Int", 3 ), 
-        { { "n", object( "Int", 3 ) } }
-    );
+    /*{ */
+        /*std::vector< pattern_ptr > patterns;*/
+        /*patterns.push_back( std::make_unique< variable_pattern >( "n" ) );*/
 
-    { 
-        std::vector< pattern_ptr > patterns;
-        patterns.push_back( std::make_unique< variable_pattern >( "n" ) );
-
-        basic_test(
-            object_pattern( "Int", std::move( patterns ) ),
-            object( "Int", 3 ), 
-            { { "n", object( "Int", 3 ) } }
-        );
-    }
-}
+        /*basic_test(*/
+            /*object_pattern( "Int", std::move( patterns ) ),*/
+            /*object( "Int", 3 ), */
+            /*{ { "n", object( "Int", 3 ) } }*/
+        /*);*/
+    /*}*/
+/*}*/
 
 void test_contains()
 {
@@ -150,6 +140,5 @@ void test_contains()
 
 void tests_pattern()
 {
-    test_pattern();
     test_contains();
 }
