@@ -7,17 +7,51 @@
 #include <memory>
 #include <iostream>
 
+#include "ast.hpp"
+#include "pattern.hpp"
+
+template< typename evaluable_t >
+struct function_path 
+{
+    std::vector< pattern_ptr > input_patterns;
+    pattern_ptr output_pattern;
+    evaluable_t evaluable; 
+
+    function_path
+        ( std::vector< pattern_ptr > input_patterns 
+        , pattern_ptr output_pattern
+        , evaluable_t evaluable ) 
+        : input_patterns( std::move( input_patterns ) )
+        , output_pattern( output_pattern )
+        , evaluable( evaluable ) 
+    {}
+};
+
+template< typename evaluable_t >
 struct function_object 
 {
+    using function_path = function_path< evaluable_t >;
+
+    std::vector< function_path > paths;
+
+    function_object( std::vector< function_path > paths ) : paths( std::move( paths ) ) {};
+
     bool operator ==( const function_object &o ) const { return true; };
 
-    std::string to_string() { return "<fun>"; };
+    std::string to_string() const { return "<fun>"; };
 };
+
+
+using value_t    = std::variant< int
+                               , bool
+                               , function_object< std::string > 
+                               , function_object< ast::node_ptr > >;
+
+std::string value_to_string( const value_t &value );
 
 struct object {
 
-    using attrs_t = std::vector< object >;
-    using value_t    = std::variant< int >;
+    using attrs_t    = std::vector< object >;
     using obj_name_t = std::string;
  
     obj_name_t name; 
@@ -50,7 +84,7 @@ struct object {
 
     std::string to_string() const {
         if ( const value_t *value = std::get_if< value_t >( &content ) ) {
-            return "( " + name + " " + kck::to_string( *value ) + " )";
+            return "( " + name + " " + value_to_string( *value ) + " )";
         } 
         if ( const attrs_t *attrs = std::get_if< attrs_t >( &content ) ) {
             std::string res = "( ";
@@ -63,3 +97,4 @@ struct object {
         assert( false );
     }
 };
+
