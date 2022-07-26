@@ -9,7 +9,6 @@
 #include <vector> 
 
 #include "types.hpp"
-#include "kocky.hpp"
 
 // #define PATTERN_DBG_FLAG
 
@@ -60,7 +59,7 @@ struct pattern {
 
     pattern ( pattern_type type ) : type ( type ) {};
 
-    virtual ~pattern() = default;
+    virtual ~pattern() {};
 
     /** A contains B iff and only if every object that matches pattern B also
      *  matches pattern A. **/
@@ -124,7 +123,7 @@ struct literal_pattern : public pattern {
     virtual bool contains( const pattern& p ) const override;
     
     std::string to_string() const override {
-        return name + " " + kck::to_string( value );
+        return name + " " + std::visit( [&]( auto &p ){ return std::to_string( p ); }, value );
     }
 };
 
@@ -161,5 +160,20 @@ struct object_pattern : public pattern {
     }
 
 };
+
+bool contains( const pattern& p, const pattern& q );
+
+template < typename visitor, typename R >
+R visit( visitor vis, const pattern& p ) {
+    if ( auto v = dynamic_cast< const variable_pattern* > ( &p ); v != nullptr ) {
+        return vis( v ); 
+    }
+    if ( auto v = dynamic_cast< const literal_pattern* > ( &p ); v != nullptr ) {
+        return vis( v );
+    }
+    if ( auto v = dynamic_cast< const object_pattern* > ( &p ); v != nullptr ) {
+        return vis( v );
+    }
+}
 
 void tests_pattern();

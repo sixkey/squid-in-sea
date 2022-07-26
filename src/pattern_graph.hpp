@@ -3,7 +3,7 @@
 #include <map>
 #include <stdexcept>
 #include <vector>
-#include "types.hpp"
+#include "values.hpp"
 #include "pattern.hpp"
 #include <cassert>
 
@@ -13,9 +13,8 @@ struct edge {
     identifier id;
 };
 
-using edges_t = std::multimap< identifier, edge >;
+using edges_t   = std::multimap< identifier, edge >;
 using id_path_t = std::vector< identifier >;
-
 
 class pattern_graph {
 
@@ -56,7 +55,7 @@ class pattern_graph {
             auto ran = _edges.equal_range( current.get_name() );
             for ( auto i = ran.first; i != ran.second; i ++ ) {
                 auto e = i->second;
-                if ( e.a->contains( current ) ) {
+                if ( contains( *e.a, current ) ) {
                     id_path.push_back( e.id );
                     if ( traverse_go( *e.b, max_depth
                                     , id_path, data, on_pattern ) ) 
@@ -67,7 +66,7 @@ class pattern_graph {
         }
 
         for ( const edge& e : variable_edges ) {
-            if ( e.a->contains( current ) ) {
+            if ( contains( *e.a, current ) ) {
                 id_path.push_back( e.id );
                 if ( traverse_go( *e.b, max_depth
                                 , id_path, data, on_pattern ) )
@@ -96,7 +95,7 @@ class pattern_graph {
                       , const pattern& destination
                       , id_path_t id_path ) 
     {
-        return destination.contains( current );
+        return contains( destination, current );
     }
 
     std::optional< std::vector< identifier > > get_path 
