@@ -6,6 +6,7 @@
 #include <stack>
 
 #include "kocky.hpp"
+#include "values.hpp"
 #include "scopestack.hpp" 
 #include "ast.hpp"
 
