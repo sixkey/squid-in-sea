@@ -1,4 +1,5 @@
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include "kocky.hpp" 
@@ -85,7 +86,7 @@ struct object {
         return out << o.to_string();
     }
 
-    bool omega () const
+    bool omega() const
     {
         return std::holds_alternative< value_t >( content );
     }
@@ -98,9 +99,19 @@ struct object {
     }
 
     template < typename primitive_t > 
-    primitive_t get_value () const 
+    primitive_t get_value() const 
     {
         return std::get< primitive_t >( std::get< value_t >( content ) );
+    }
+    
+    value_t get_value() const 
+    {
+        return std::get< value_t >( content );
+    }
+
+    const attrs_t& get_attrs() const 
+    {
+        return std::get< attrs_t >( content );
     }
 
     std::string value_to_string( const value_t &value ) const {
@@ -138,5 +149,20 @@ struct object {
     }
 };
 
+using matching_t = std::map< identifier_t, object >;
 
- 
+template < typename T >
+bool match( const literal_pattern< T >& p, const object& o, matching_t& match )
+{
+    if ( !o.omega() ) {
+        return P_DBG_RET( false, "is not an omega object" );
+    }
+    if ( o.name != p.name ) {
+        return P_DBG_RET( false, "names do not match" );
+    }
+    if ( o.has_value< T >() && o.get_value< T >() != p.value ) {
+        return P_DBG_RET( false, "values do not match" );
+    }
+    return true;
+}
+

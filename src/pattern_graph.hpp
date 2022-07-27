@@ -37,7 +37,8 @@ class pattern_graph {
         _edges.insert( { p.name, { p, q, std::move( id ) } } );
     }
 
-    void add_edge( const literal_pattern &p, const pattern &q, identifier_t id ) {
+    template < typename T > 
+    void add_edge( const literal_pattern< T > &p, const pattern &q, identifier_t id ) {
         _edges.insert( { p.name, { p, q, std::move( id ) } } );
     }
 
