@@ -10,8 +10,6 @@
 #include "scopestack.hpp" 
 #include "ast.hpp"
 
-using identifier_t = std::string;
-
 template < typename eval_t >
 struct literal 
 {

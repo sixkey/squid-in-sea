@@ -26,35 +26,11 @@ struct literal_pattern;
 using pattern = std::variant< variable_pattern, literal_pattern, object_pattern >;
 using pattern_value_t = std::variant< int, bool >;
 
-enum pattern_type {
-    p_literal, 
-    p_variable, 
-    p_object
-};
-
-class pattern_matching_error : std::exception {
-
-private:
-
-    char * _message;
-
-public:
-
-    pattern_matching_error( const char * message ) {
-        message = _message; 
-    }
-
-    char * what () {
-        return _message;
-    }
-
-};
-
 struct variable_pattern {
     
-    identifier variable_name;
+    identifier_t variable_name;
 
-    variable_pattern( identifier variable_name ) 
+    variable_pattern( identifier_t variable_name ) 
         : variable_name( std::move( variable_name ) ) {}
 
     std::string to_string() const {
@@ -62,28 +38,29 @@ struct variable_pattern {
     }
 };
 
-
 struct literal_pattern {
     
-    identifier name;
+    identifier_t name;
     pattern_value_t value;
 
-    literal_pattern( identifier name, pattern_value_t value ) 
+    literal_pattern( identifier_t name, pattern_value_t value ) 
         : name ( name )
         , value ( value ) {}
 
     std::string to_string() const {
-        return name + " " + std::visit( [&]( auto &p ){ return std::to_string( p ); }, value );
+        return name 
+             + " " 
+             + std::visit( [&]( auto &p ){ return std::to_string( p ); }, value );
     }
 };
 
 struct object_pattern {
 
-    identifier name;
+    identifier_t name;
     std::vector< pattern > patterns;
 
     object_pattern
-        ( identifier name
+        ( identifier_t name
         , std::vector< pattern > patterns ) 
         : name( std::move( name ) ), patterns( std::move( patterns ) ) {}
 
@@ -98,6 +75,10 @@ struct object_pattern {
         return res;
     }
 };
+
+///////////////////////////////////////////////////////////////////////////////
+// Order on patterns
+///////////////////////////////////////////////////////////////////////////////
 
 struct comparator {
 

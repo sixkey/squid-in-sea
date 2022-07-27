@@ -25,8 +25,8 @@ struct literal
 
 struct variable 
 {
-    identifier name;
-    variable ( identifier name ) : name( name ) {};
+    identifier_t name;
+    variable ( identifier_t name ) : name( name ) {};
 };
 
 struct function_call 

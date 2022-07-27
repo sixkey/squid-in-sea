@@ -2,4 +2,4 @@
 
 #include <string> 
 
-using identifier = std::string;
+using identifier_t = std::string;

@@ -10,11 +10,11 @@
 struct edge {
     pattern a; 
     pattern b; 
-    identifier id;
+    identifier_t id;
 };
 
-using edges_t   = std::multimap< identifier, edge >;
-using id_path_t = std::vector< identifier >;
+using edges_t   = std::multimap< identifier_t, edge >;
+using id_path_t = std::vector< identifier_t >;
 
 class pattern_graph {
 
@@ -25,19 +25,19 @@ class pattern_graph {
 
     pattern_graph() = default;
 
-    void add_edge( const pattern &p, const pattern &q, identifier id ) {
+    void add_edge( const pattern &p, const pattern &q, identifier_t id ) {
         std::visit( [&]( auto &v ){ this->add_edge( v, q, std::move( id ) ); }, p );
     }
 
-    void add_edge( const variable_pattern &p, const pattern &q, identifier id ) {
+    void add_edge( const variable_pattern &p, const pattern &q, identifier_t id ) {
         variable_edges.push_back( { p, q, std::move( id ) } );
     }
 
-    void add_edge( const object_pattern &p, const pattern &q, identifier id ) {
+    void add_edge( const object_pattern &p, const pattern &q, identifier_t id ) {
         _edges.insert( { p.name, { p, q, std::move( id ) } } );
     }
 
-    void add_edge( const literal_pattern &p, const pattern &q, identifier id ) {
+    void add_edge( const literal_pattern &p, const pattern &q, identifier_t id ) {
         _edges.insert( { p.name, { p, q, std::move( id ) } } );
     }
 
@@ -46,8 +46,8 @@ class pattern_graph {
     template< typename T >
     bool traverse_go
         ( const pattern &current, int max_depth
-        , std::vector< identifier > &id_path, T& data
-        , bool (*on_pattern)( const pattern&, T&, const std::vector< identifier > ) )
+        , std::vector< identifier_t > &id_path, T& data
+        , bool (*on_pattern)( const pattern&, T&, const std::vector< identifier_t > ) )
     {
         if ( id_path.size() >= max_depth ) 
             return false;
@@ -85,7 +85,7 @@ class pattern_graph {
     template< typename T >
     std::pair< bool, id_path_t > traverse 
         ( const pattern &current, int max_depth, T& data
-        , bool (*on_pattern)( const pattern&, T&, const std::vector< identifier > ) )
+        , bool (*on_pattern)( const pattern&, T&, const std::vector< identifier_t > ) )
     {
         id_path_t id_path;
         bool res = traverse_go( current, max_depth, id_path, data, on_pattern );
@@ -102,7 +102,7 @@ class pattern_graph {
         return contains( destination, current );
     }
 
-    std::optional< std::vector< identifier > > get_path 
+    std::optional< std::vector< identifier_t > > get_path 
         ( const pattern &p, const pattern &q, int max_depth )
     {
         for ( int i = 1; i < max_depth; i++ ) {
