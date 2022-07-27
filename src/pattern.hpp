@@ -8,6 +8,7 @@
 #include <variant>
 #include <vector> 
 
+#include "kocky.hpp"
 #include "types.hpp"
 
 // #define PATTERN_DBG_FLAG
@@ -18,12 +19,11 @@
     #define P_DBG_RET( x, y ) ( x )
 #endif 
 
-struct pattern;
 struct variable_pattern;
 struct object_pattern;
 struct literal_pattern;
 
-using pattern_ptr = std::shared_ptr< pattern >;
+using pattern = std::variant< variable_pattern, literal_pattern, object_pattern >;
 using pattern_value_t = std::variant< int, bool >;
 
 enum pattern_type {
@@ -50,130 +50,118 @@ public:
 
 };
 
-struct pattern {
-    /**
-     * :person_facepalming:
-     *              -- tesla
-     * **/
-    pattern_type type;
-
-    pattern ( pattern_type type ) : type ( type ) {};
-
-    virtual ~pattern() {};
-
-    /** A contains B iff and only if every object that matches pattern B also
-     *  matches pattern A. **/
-        
-    virtual bool contains( const pattern& p ) const = 0;
-
-    virtual identifier get_name() const = 0;
-
-    virtual pattern_ptr clone() const = 0;
-
-    virtual std::string to_string() const = 0;
-
-};
-
-struct variable_pattern : public pattern {
+struct variable_pattern {
     
     identifier variable_name;
 
-    variable_pattern( std::string variable_name ) 
-        : pattern( p_variable )
-        , variable_name( std::move( variable_name ) ) {}
+    variable_pattern( identifier variable_name ) 
+        : variable_name( std::move( variable_name ) ) {}
 
-    bool contains( const pattern& p ) const override {
-        return true;
-    }
-
-    identifier get_name() const override {
-        throw std::runtime_error( "variable pattern does not have a name" );
-    }
-
-    pattern_ptr clone() const override
-    {
-        return std::make_shared< variable_pattern >( *this );
-    }
-
-    std::string to_string() const override {
+    std::string to_string() const {
         return variable_name;
     }
 };
 
 
-struct literal_pattern : public pattern {
+struct literal_pattern {
     
     identifier name;
     pattern_value_t value;
 
     literal_pattern( identifier name, pattern_value_t value ) 
-        : pattern( p_literal )
-        , name ( name )
+        : name ( name )
         , value ( value ) {}
 
-    identifier get_name() const override {
-        return name;
-    }
-
-    pattern_ptr clone() const override
-    {
-        return std::make_shared< literal_pattern >( *this );
-    }
-
-    virtual bool contains( const pattern& p ) const override;
-    
-    std::string to_string() const override {
+    std::string to_string() const {
         return name + " " + std::visit( [&]( auto &p ){ return std::to_string( p ); }, value );
     }
 };
 
-struct object_pattern : public pattern {
+struct object_pattern {
 
     identifier name;
-    std::vector< pattern_ptr > patterns;
+    std::vector< pattern > patterns;
 
     object_pattern
         ( identifier name
-        , std::vector< pattern_ptr > patterns ) 
-        : pattern( p_object )
-        , name( std::move( name ) ), patterns( std::move( patterns ) ) {}
+        , std::vector< pattern > patterns ) 
+        : name( std::move( name ) ), patterns( std::move( patterns ) ) {}
 
-    identifier get_name() const override {
-        return name;
-    }
-
-    pattern_ptr clone() const override
+    std::string to_string() const
     {
-        return std::make_shared< object_pattern >( *this );
-    }
-
-    virtual bool contains( const pattern& p ) const override;
-
-    std::string to_string() const override {
         std::string res = "( " + name;
         for ( auto& v : patterns ) {
             res.append( " " );
-            res.append( v->to_string() );
+            res.append( std::visit( [&]( auto &p ){ return p.to_string(); }, v ) );
         }
         res.append( " )" );
         return res;
     }
+};
 
+struct comparator {
+
+    static bool contains( const pattern& p, const pattern& q )
+    {
+        return std::visit( 
+            [&]( auto &l ){ 
+                return std::visit( 
+                    [&]( auto &r ){ 
+                        return contains( l, r );
+                    }, q ); }
+                , p );
+    };
+
+    static bool contains( const variable_pattern& a, const variable_pattern& b ) 
+    {   
+        return true; 
+    };
+
+    static bool contains( const variable_pattern& a, const literal_pattern& b ) 
+    {   
+        return true; 
+    };
+
+    static bool contains( const variable_pattern& a, const object_pattern& b ) 
+    {   
+        return true; 
+    };
+
+    static bool contains( const literal_pattern& a, const variable_pattern& b ) {
+        return false;
+    }
+
+    static bool contains( const literal_pattern& a, const literal_pattern& b ) {
+        return a.name == b.name 
+            && a.value == b.value;
+    }
+
+    static bool contains( const literal_pattern& a, const object_pattern& b ) {
+        return a.name == b.name
+            && b.patterns.size() == 1
+            && contains( pattern( a ), b.patterns[ 0 ] );
+    }
+
+    static bool contains( const object_pattern& a, const literal_pattern& b ) {
+        return a.name == b.name
+            && a.patterns.size() == 1
+            && contains( a.patterns[ 0 ], pattern( b ) );
+    }
+
+    static bool contains( const object_pattern& a, const variable_pattern& b ) {
+        return false;
+    }
+
+    static bool contains( const object_pattern& a, const object_pattern& b ) {
+        if ( a.name != b.name || a.patterns.size() != b.patterns.size() )
+            return false;
+        for ( int i = 0; i < a.patterns.size(); i++ )
+            if ( !contains( a.patterns[ i ], b.patterns[ i ] ) ) 
+                return false;
+        return true;
+    }
 };
 
 bool contains( const pattern& p, const pattern& q );
-
-template < typename visitor, typename R >
-R visit( visitor vis, const pattern& p ) {
-    if ( auto v = dynamic_cast< const variable_pattern* > ( &p ); v != nullptr ) {
-        return vis( v ); 
-    }
-    if ( auto v = dynamic_cast< const literal_pattern* > ( &p ); v != nullptr ) {
-        return vis( v );
-    }
-    if ( auto v = dynamic_cast< const object_pattern* > ( &p ); v != nullptr ) {
-        return vis( v );
-    }
-}
 
 void tests_pattern();

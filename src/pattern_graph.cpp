@@ -12,9 +12,9 @@ void tests_pattern_graph()
 
     variable_pattern a = variable_pattern( "a" );
     variable_pattern b = variable_pattern( "b" );
-    object_pattern meter_a = object_pattern( "Meter", { a.clone() } );
-    object_pattern mile_b = object_pattern( "Mile", { b.clone() } );
-    object_pattern mile_mile_b = object_pattern( "Mile", { mile_b.clone() } );
+    object_pattern meter_a = object_pattern( "Meter", { a } );
+    object_pattern mile_b = object_pattern( "Mile", { b } );
+    object_pattern mile_mile_b = object_pattern( "Mile", { mile_b } );
 
     g.add_edge( meter_a, mile_b,      "meters_to_miles" );
     g.add_edge( mile_b,  meter_a,     "miles_to_meters" );
