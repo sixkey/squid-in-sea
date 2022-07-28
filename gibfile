@@ -1,8 +1,9 @@
-set cpp /home/sixkey/git/llvm-project/build/bin/clang++
+# set cpp /home/sixkey/git/llvm-project/build/bin/clang++
 # set cpp /usr/bin/clang++-12
-# set cpp /usr/bin/g++-9
-set findsrc /home/sixkey/apps/gib/_build/gib.findsrc
-set nochange /home/sixkey/apps/gib/_build/gib.nochange
+set cpp /usr/bin/g++-9
+set wrapcc      /home/sixkey/apps/gib/_build/gib.wrapcc
+set findsrc     /home/sixkey/apps/gib/_build/gib.findsrc
+set nochange    /home/sixkey/apps/gib/_build/gib.nochange
 set mkdir /bin/mkdir
 set ld /bin/ld
 
@@ -20,7 +21,7 @@ set all
 for file $(src_files:src/*.cpp:$1)
 out $(file).o
 dep src/$(file).cpp
-cmd $(cpp) --std=c++17 -ferror-limit=1 -g -c -o $(out) $(srcdir)/$(dep)
+cmd $(wrapcc) $(cpp) --std=c++17 -g -c -o $(out) $(srcdir)/$(dep)
 
 out main
 dep $(src_files:src/*.cpp:$1).o

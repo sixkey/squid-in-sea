@@ -84,12 +84,6 @@ struct object {
         return other.name == name && other.content == content;
     }
 
-    friend std::ostream& operator<<( std::ostream &out, const object &o ) 
-    {
-        return out << o.to_string();
-    }
-
-
     bool omega() const
     {
         return std::holds_alternative< value_t >( content );
@@ -155,6 +149,11 @@ struct object {
             return res + " )";
         } 
         assert( false );
+    }
+
+    friend std::ostream& operator<<( std::ostream &out, const object &o ) 
+    {
+        return out << o.to_string();
     }
 };
 

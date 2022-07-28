@@ -6,6 +6,9 @@
 #include <stack>
 
 #include "kocky.hpp"
+#include "pattern.hpp"
+#include "pprint.hpp"
+#include "types.hpp"
 #include "values.hpp"
 #include "scopestack.hpp" 
 #include "ast.hpp"
@@ -21,7 +24,11 @@ struct literal
 
     void visit( eval_t& eval ) {
         eval.state.push_value( value );
-        eval.state.pop_cell();
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, literal l )
+    {
+        return os << "Literal " << l.value;
     }
 };
 
@@ -35,43 +42,84 @@ struct variable
     variable( identifier_t id ) : id( id ) {};
 
     void visit( eval_t& eval ) {
-        object_t value = eval.state.store.lookup( id );
+        object_t value = eval.state._store.lookup( id );
         eval.state.push_value( std::move( value ) );
         eval.state.pop_value();
-        eval.state.pop_cell();
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, variable v )
+    {
+        return os << "Variable " << v.id;
     }
 };
 
-template < typename eval_t >
+///////////////////////////////////////////////////////////////////////////////
+// Functions
+///////////////////////////////////////////////////////////////////////////////
+
+template < typename eval_t, typename evaluable_t > 
+struct fun_cleanup
+{
+    using object_t = typename eval_t::object_t;
+    using fun_obj_t = function_object< evaluable_t >;
+
+    fun_obj_t fun;
+
+    fun_cleanup( fun_obj_t fun ) : fun( fun ) {}
+
+    void visit( eval_t& eval )
+    {
+        // TODO: check output pattern
+        eval.state._store.scopes.pop_scope();
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, fun_cleanup f )
+    {
+        return os << "FunCleanup";
+    }
+};
+
+template < typename eval_t, typename evaluable_t >
 struct fun_call 
 {
     using object_t = typename eval_t::object_t;
-    using fun_obj_t = typename object_t::fun_obj_t;
 
-    fun_obj_t fun;
+    function_object< evaluable_t > fun;
     int arity;
 
-    fun_call( fun_obj_t fun, int arity ) : fun( fun ), arity( arity ) {}
-
-    object_t call( eval_t& eval, const std::vector< object_t >& values ) 
+    fun_call( function_object< evaluable_t > fun, int arity ) 
+            : fun( fun ), arity( arity ) {}
+    
+    void call( eval_t& eval, const std::vector< object_t >& values ) 
     {
-        NOT_IMPLEMENTED();
     }
 
     void visit( eval_t& eval ) 
     {
+        /** Move values from value stack to a bundle for function 
+         *  TODO: probably avoidable using an iterator. **/
         std::vector< object_t > values;
         for ( int i = 0; i < arity; i++ )
             values.push_back( eval.state.pop_value() );
 
-        object_t value = call( eval, std::move( values ) );
+        auto result = match< evaluable_t >( fun, values );
+        if ( !result.has_value() )
+            throw std::runtime_error( "no pattern match" );
+        const auto &[ matching, evaluable ] = result.value();
 
-        values.push_back( value );
-        eval.state.pop_cell();
+        eval.state.push_cell( fun_cleanup< eval_t, evaluable_t >( std::move( fun ) ) );
+        eval.state._store.scopes.add_scope();
+        eval.state._store.assign( matching );
+        eval.push( evaluable );
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, fun_call f )
+    {
+        return os << "FunCall";
     }
 };
 
-template < typename eval_t >
+template < typename eval_t, typename evaluable_t >
 struct fun_args 
 {
     using object_t   = typename eval_t::object_t;
@@ -85,26 +133,37 @@ struct fun_args
     void visit( eval_t& eval )
     {
         object_t obj = eval.state.pop_value();
-        assert( obj.template has_value< fun_obj_t>() );
+        assert( obj.template has_value< function_object< evaluable_t > >() );
         fun_obj_t fun = obj.template get_value< fun_obj_t >();
 
         int arity = std::max< int >( fun.arity(), args.size() );
 
-        eval.state.push_cell( fun_call< eval_t >( std::move( fun ), arity ) );
+        int index = -1;
 
-        for ( int i = 0; i < arity; i ++ ) {
-            args.pop_back();
-            eval.state.push_cell( eval.translator.translate( *args.back() ) );
+        if ( arity != args.size() ) {
+            index = eval.state._cells.size();
+            eval.state.push_cell( fun_args< eval_t, evaluable_t >( {} ) );
         }
 
-        /** If not, there are still arguments to be processed
-         *  this cell will wait for another function object **/
-        if ( args.size() == 0 )
-            eval.state.pop_cell();
+        eval.state.push_cell( fun_call< eval_t, evaluable_t >( std::move( fun ), arity ) );
+        for ( int i = 0; i < arity; i ++ ) {
+            eval.state.push_cell( eval.translator.translate( *args.back() ) );
+            args.pop_back();
+        }
+
+        if ( index != -1 ) 
+        {
+            std::get< fun_args >( eval.state._cells[ index ] ).args = std::move( args );
+        }
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, fun_args f )
+    {
+        return os << "FunArgs " << f.args.size();
     }
 };
 
-template < typename eval_t >
+template < typename eval_t, typename evaluable_t >
 struct fun_init 
 {
     using ast_node_ptr = typename eval_t::ast_node_ptr;
@@ -120,11 +179,19 @@ struct fun_init
 
 
     void visit( eval_t& eval ) {
-        eval.state.push_cell( fun_args< eval_t >( std::move( args ) ) );
+        eval.state.push_cell( fun_args< eval_t, evaluable_t >( std::move( args ) ) );
         eval.state.push_cell( eval.translator.translate( *fun_ast ) );
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, const fun_init& f )
+    {
+        return os << "FunInit";
     }
 };
 
+///////////////////////////////////////////////////////////////////////////////
+// Translators
+///////////////////////////////////////////////////////////////////////////////
 
 template < typename ast_node_t, typename eval_t >
 class eval_translator
@@ -132,51 +199,107 @@ class eval_translator
     using eval_cell_t = typename eval_t::eval_cell_t;
 
 public:
-    eval_cell_t translate( const ast_node_t& n ) const
-    {
-        NOT_IMPLEMENTED();
-    }
+    static eval_cell_t translate( const ast_node_t& n );
 };
-
-template < typename eval_t >
-using eval_cell = std::variant< 
-    literal< eval_t >,
-    variable< eval_t >,
-    fun_call< eval_t >,
-    fun_args< eval_t >, 
-    fun_init< eval_t > >;
 
 template < typename eval_t >
 class eval_translator< ast::ast_node, eval_t >
 {
+
     using eval_cell_t = typename eval_t::eval_cell_t;
     using ast_node_t = ast::ast_node;
     using object_t = typename eval_t::object_t;
 
 public:
 
-    eval_cell_t translate( const ast_node_t& n ) const
+    static eval_cell_t translate( const ast_node_t& n ) 
     {
-        return std::visit( [&]( auto &p ){ return this->accept( p ); }, n );
+        return std::visit( [&]( auto &p ){ return accept( p ); }, n );
     }
 
     template < typename T >
-    eval_cell_t accept( const ast::literal< T > &l ) const
+    static eval_cell_t accept( const ast::literal< T > &l ) 
     {
         return literal< eval_t >( l.value ); 
     }
 
-    eval_cell_t accept( const ast::variable& v ) const
+    static eval_cell_t accept( const ast::variable& v ) 
     {
         return variable< eval_t >( v.name );
     }
 
-    eval_cell_t accept( const ast::function_call& f ) const
+    static eval_cell_t accept( const ast::function_call& f ) 
     {
-        return fun_init< eval_t >( f.fun, f.args );
+        return fun_init< eval_t, ast::node_ptr >( f.fun, f.args );
+    }
+
+    template< typename T >
+    static literal_pattern< T > tran_pattern( const ast::literal_pattern< T >& p )
+    {
+        return literal_pattern< T >( p.name, p.value );
+    }
+
+    static variable_pattern tran_pattern( const ast::variable_pattern& p )
+    {
+        return variable_pattern( p.name );
+    }
+
+    static object_pattern tran_pattern( const ast::object_pattern& p )
+    {
+        std::vector< pattern > patterns;
+        for ( const auto& child : p.patterns )
+            patterns.push_back( eval_translator::tran_pattern( child ) );
+        return object_pattern( p.name, std::move( patterns ) );
+    }
+
+    static pattern tran_pattern( const ast::pattern& p )
+    {
+        return std::visit( [&]( const auto& v ){ return pattern{ eval_translator::tran_pattern( v ) }; }, p );
+    }
+
+    static function_path< ast::node_ptr > translate_path( const ast::function_path& p )
+    {
+        std::vector< pattern > input_patterns;
+        for ( const auto& pattern : p.input_patterns ) 
+            input_patterns.push_back( tran_pattern( pattern ) );
+        const auto& output_pattern = tran_pattern( p.output_pattern );
+        return function_path< ast::node_ptr >( input_patterns, output_pattern, p.expression );
+    }
+
+    static function_object< ast::node_ptr > translate_fun( const ast::function_def &f )
+    {
+        std::vector< function_path< ast::node_ptr > > paths;
+        for ( const auto& f_path : f.paths )
+            paths.push_back( translate_path( f_path ) );
+        return function_object< ast::node_ptr >( paths, f.arity );
+    }
+
+    static eval_cell_t accept( const ast::function_def& f )
+    {
+        return literal< eval_t >( object_t( translate_fun( f ) ) );
     }
 
 };
+
+template < typename eval_t >
+class eval_translator< ast::node_ptr, eval_t >
+{
+
+    using eval_cell_t = typename eval_t::eval_cell_t;
+    using ast_node_t = ast::node_ptr;
+    using object_t = typename eval_t::object_t;
+
+public:
+
+    static eval_cell_t translate( const ast_node_t& n ) 
+    {
+        return eval_translator< ast::ast_node, eval_t >::translate( *n );
+    }
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// State
+///////////////////////////////////////////////////////////////////////////////
 
 template < typename object_t > 
 struct store 
@@ -196,10 +319,15 @@ struct store
     {
         std::optional< store_id > id = scopes.lookup( name );
         if ( id.has_value() ) {
-            _store[ id ] = std::move( value );
+            _store[ id.value() ] = std::move( value );
         } else {
-            bind( name, value );
+            bind( std::move( name ), std::move( value ) );
         }
+    }
+
+    void assign( const std::map< identifier_t, object_t >& assignment ) {
+        for ( const auto &[ key, val ] : assignment )
+            assign( key, val );
     }
     
     object_t lookup( identifier_t name )
@@ -211,6 +339,16 @@ struct store
         return _store[ id.value() ];
     }
 
+    friend std::ostream& operator<<( std::ostream& os, const store& s )
+    {
+        pprint::PrettyPrinter printer( os );
+        printer.print( "Scope" );
+        printer.print( s.scopes );
+        printer.print( "Store" );
+        printer.print( s._store );
+        return os;
+    }
+
 };
 
 template < typename object_t, typename eval_cell_t >
@@ -218,20 +356,26 @@ struct eval_state
 {
 
     std::stack< object_t > _values;
-    std::stack< eval_cell_t > _cells;
-    store< object_t > store;
+    std::vector< eval_cell_t > _cells;
+    store< object_t > _store;
 
     void push_cell( const eval_cell_t c )
     {
-        _cells.push( c );
+        _cells.push_back( c );
     }
 
     eval_cell_t pop_cell()
     {
         assert( !_cells.empty() );
-        eval_cell_t res = std::move( _cells.top() );
-        _cells.pop();
+        eval_cell_t res = std::move( _cells.back() );
+        _cells.pop_back();
         return std::move( res );
+    }
+
+    eval_cell_t& cells_top()
+    {
+        assert( !_cells.empty() );
+        return _cells.back();
     }
     
     void push_value( object_t o )
@@ -249,6 +393,24 @@ struct eval_state
 
 };
 
+///////////////////////////////////////////////////////////////////////////////
+// Scopes
+///////////////////////////////////////////////////////////////////////////////
+
+template < typename eval_t >
+using misc_cells = std::variant< literal< eval_t > 
+                               , variable< eval_t > >;
+
+template < typename eval_t, typename evaluable_t  > 
+using function_cells = std::variant< fun_call< eval_t, evaluable_t >
+                                   , fun_args< eval_t, evaluable_t > 
+                                   , fun_init< eval_t, evaluable_t >
+                                   , fun_cleanup< eval_t, evaluable_t > >;
+
+template < typename eval_t >
+using eval_cell = typename kck::concat< misc_cells< eval_t >, 
+                                        function_cells< eval_t, ast::node_ptr > >::type;
+
 template < typename object_t_ >
 struct eval 
 {
@@ -260,20 +422,36 @@ struct eval
     eval_state      < object_t,   eval_cell_t >  state;
     eval_translator < ast_node_t, eval >  translator;
 
-    void eval_top()
+    void evaluate()
     {
-        std::visit( [&]( auto &v ){ v.visit( *this ); }, state._cells.top() );
-    }
-    void eval_c( const eval_cell_t cell )
-    {
-        state.push_cell( cell );
-        eval_top();
+        pprint::PrettyPrinter printer;
+        while( !state._cells.empty() )
+        {
+            eval_top();
+            printer.print( "STEP" );
+            printer.print( state._cells );
+            printer.print( state._values );
+            printer.print( state._store );
+        }
     }
 
-    void eval_a( const ast_node_t node )
+    void eval_top()
     {
-        eval_c( translator.translate( node ) );
+        eval_cell_t top_cell = state.pop_cell();
+        std::visit( [&]( auto &v ){ v.visit( *this ); }, top_cell );
     }
+
+    void push( const eval_cell_t& cell )
+    {
+        state.push_cell( cell );
+    }
+
+    template < typename T > 
+    void push( const T& something )
+    {
+        state.push_cell( eval_translator< T, eval >::translate( something ) );
+    }
+
 };
 
 void tests_eval();

@@ -1,4 +1,6 @@
+#include "pprint.hpp"
 #include <map>
+#include <ostream>
 #include <vector>
 
 template < typename identifier_t, typename store_id >
@@ -9,7 +11,7 @@ struct scopestack
 
     void add_scope()
     {
-        scopes.push_back();
+        scopes.push_back( {} );
     }
 
     void pop_scope()
@@ -21,7 +23,7 @@ struct scopestack
     {
         assert( !scopes.empty() );
         scope& top = scopes.back();
-        top.insert_or_assign( { name, id } );
+        top.insert_or_assign( name, id );
     }
 
     std::optional< store_id > lookup( identifier_t name )
@@ -32,5 +34,15 @@ struct scopestack
                 return it->second;
         }
         return {};
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, const scopestack& s )
+    {
+        pprint::PrettyPrinter printer( os );
+        for( const auto& s : s.scopes )
+        {
+            printer.print( s );
+        }
+        return os;
     }
 };
