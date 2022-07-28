@@ -151,6 +151,14 @@ struct object {
 
 using matching_t = std::map< identifier_t, object >;
 
+bool match( const pattern& p, const object& o, matching_t& m );
+
+bool match( const variable_pattern& p, const object& o, matching_t& match );
+
+bool match( const object_pattern& p, const object& o, matching_t& m );
+
+std::optional< matching_t > match ( const pattern& p, const object& o );
+
 template < typename T >
 bool match( const literal_pattern< T >& p, const object& o, matching_t& match )
 {
@@ -166,3 +174,4 @@ bool match( const literal_pattern< T >& p, const object& o, matching_t& match )
     return true;
 }
 
+void tests_values();
