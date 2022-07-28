@@ -4,6 +4,7 @@ set cpp /home/sixkey/git/llvm-project/build/bin/clang++
 set findsrc /home/sixkey/apps/gib/_build/gib.findsrc
 set nochange /home/sixkey/apps/gib/_build/gib.nochange
 set mkdir /bin/mkdir
+set ld /bin/ld
 
 out manifest.txt
 cmd $(findsrc) $(srcdir) manifest.txt
@@ -16,8 +17,13 @@ cmd $(nochange) $(mkdir) -p tmp $(src_dirs)
 
 set all
 
+for file $(src_files:src/*.cpp:$1)
+out $(file).o
+dep src/$(file).cpp
+cmd $(cpp) --std=c++17 -ferror-limit=1 -g -c -o $(out) $(srcdir)/$(dep)
+
 out main
-dep $(src_files:*)
-cmd $(cpp) --std=c++17 -g -o main $(srcdir)/$(src_files:*.cpp)
+dep $(src_files:src/*.cpp:$1).o
+cmd $(cpp) --std=c++17 -o squid $(dep)
 
 add all main

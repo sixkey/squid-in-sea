@@ -11,9 +11,11 @@
 #include "ast.hpp"
 #include "pattern.hpp"
 
-template< typename evaluable_t >
+template< typename evaluable_t_ >
 struct function_path 
 {
+    using evaluable_t = evaluable_t_;
+
     std::vector< pattern > input_patterns;
     pattern output_pattern;
     evaluable_t evaluable; 
@@ -28,9 +30,10 @@ struct function_path
     {}
 };
 
-template< typename evaluable_t >
+template< typename evaluable_t_ >
 struct function_object 
 {
+    using evaluable_t = evaluable_t_;
     using function_path_t = function_path< evaluable_t >;
 
     std::vector< function_path_t > paths;
@@ -44,7 +47,7 @@ struct function_object
 
     std::string to_string() const { return "<fun>"; };
 
-    int arity() { return arity_; };
+    int arity() const { return arity_; };
 };
 
 struct object {
@@ -86,6 +89,7 @@ struct object {
         return out << o.to_string();
     }
 
+
     bool omega() const
     {
         return std::holds_alternative< value_t >( content );
@@ -112,6 +116,11 @@ struct object {
     const attrs_t& get_attrs() const 
     {
         return std::get< attrs_t >( content );
+    }
+
+    int arity() const
+    {
+        return omega() ? 1 : get_attrs().size();
     }
 
     std::string value_to_string( const value_t &value ) const {
@@ -151,6 +160,7 @@ struct object {
 
 using matching_t = std::map< identifier_t, object >;
 
+
 bool match( const pattern& p, const object& o, matching_t& m );
 
 bool match( const variable_pattern& p, const object& o, matching_t& match );
@@ -172,6 +182,35 @@ bool match( const literal_pattern< T >& p, const object& o, matching_t& match )
         return P_DBG_RET( false, "values do not match" );
     }
     return true;
+}
+
+template < typename evaluable_t >
+std::optional< matching_t > match
+    ( const function_path< evaluable_t >& f_path
+    , const std::vector< object >& objects )
+{
+    if ( objects.size() != f_path.input_patterns.size() )
+        return {};
+    matching_t matching; 
+    for ( int i = 0; i < objects.size(); i ++ ) 
+        if ( ! match( f_path.input_patterns[ i ], objects[ i ], matching ) )
+            return {};
+    return matching; 
+}
+
+template < typename evaluable_t >
+std::optional< std::pair< matching_t, evaluable_t > > match
+    ( const function_object< evaluable_t >& funobj
+    , const std::vector< object >& objects )
+{
+    if ( objects.size() != funobj.arity() ) 
+        return {};
+    for ( const auto& f_path : funobj.paths ) {
+        auto res = match( f_path, objects );
+        if ( res.has_value() )
+            return std::pair{ res.value(), f_path.evaluable };
+    }
+    return {};
 }
 
 void tests_values();
