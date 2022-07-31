@@ -15,7 +15,11 @@ struct variable;
 struct function_call;
 struct function_def;
 
-using ast_node = std::variant< literal< int >, variable, function_call, function_def >;
+using ast_node = std::variant< variable
+                             , function_call
+                             , function_def
+                             , literal< int >
+                             , literal< bool > >;
 using node_ptr = std::shared_ptr< ast_node >;
 
 template< typename value_t >
