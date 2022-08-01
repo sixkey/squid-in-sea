@@ -42,7 +42,12 @@ struct builtins
         { "__int_sub__", { sub, int_binary_o } },
         { "__int_mul__", { mul, int_binary_o } },
         { "__int_div__", { div, int_binary_o } },
-        { "__int_mod__", { mod, int_binary_o } }
+        { "__int_mod__", { mod, int_binary_o } },
+        { "+", { add, int_binary_o } },
+        { "-", { sub, int_binary_o } },
+        { "*", { mul, int_binary_o } },
+        { "/", { div, int_binary_o } },
+        { "%", { mod, int_binary_o } }
     };
 
     static void add_builtins( eval_t& e )
@@ -58,9 +63,10 @@ void test_run()
     using eval_t = eval;
     using builtin_t = std::function< void( eval_t& ) >;
 
-    parser p( "__int_add__ 3 4", 10 );
+    parser p( "( 3 + 4 ) * 4", 10 );
 
     p.op_table.insert( { "+"s, { 6, false } } );
+    p.op_table.insert( { "*"s, { 7, false } } );
 
     eval_t e;
 

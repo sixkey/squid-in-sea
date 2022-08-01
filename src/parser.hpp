@@ -491,10 +491,14 @@ struct parser
     void on_inc( lexeme l ) 
     {}
 
+    std::string p_identifier()
+    {
+        return p_state.req_pop( istype< identifier > ).content;
+    }
+
     ast::variable p_variable()
     {
-        auto id = p_state.req_pop( istype< identifier > );
-        return ast::variable( std::move( id.content ) );
+        return ast::variable( p_identifier() );
     }
 
     ast::literal< int > p_number()
