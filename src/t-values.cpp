@@ -1,8 +1,14 @@
 #include "pattern.hpp"
 #include "values.hpp" 
 
+
+template< typename value_t >
 void test_pattern ()
 {
+    using object = object< value_t >;
+    using matching_t = matching_t< value_t >;
+    using evaluable_t = int;
+
     auto basic_test = [] ( const pattern &f, const object &o, const matching_t &m ) {
         auto res = match( f, o );
         if ( ! res.has_value() ) { assert( false ); }
@@ -10,7 +16,7 @@ void test_pattern ()
     };
 
     auto fun_test = [] ( const auto &f, const auto &o, const matching_t &m, const auto& e  ) {
-        auto res = match< typename std::decay_t< decltype( f ) >::evaluable_t >( f, o );
+        auto res = match( f, o );
         if ( ! res.has_value() ) { assert( false ); }
         assert( res.value().first  == m );
         assert( res.value().second == e );
@@ -127,7 +133,26 @@ void test_pattern ()
     );
 }
 
+struct test_types_
+{
+    using fun_obj_t = function_object< int >;
+    using value_t = std::variant< int
+                                , bool
+                                , fun_obj_t >;
+    template< typename T > 
+    static constexpr const char * type_name() {
+        if constexpr ( std::is_same< T, int >::value ) 
+            return "Int";
+        else if constexpr ( std::is_same< T, bool >::value ) 
+            return "Bool";
+        else if constexpr ( std::is_same< T, fun_obj_t >::value )
+            return "Fun";
+        else 
+            assert( false );
+    }
+};
+
 void tests_values()
 {
-    test_pattern();
+    test_pattern< test_types_ >();
 }

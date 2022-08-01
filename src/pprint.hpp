@@ -448,6 +448,7 @@ namespace pprint {
     size_t indent_;
     bool quotes_;
     bool compact_;
+    size_t indent_offset_ = 0;
 
   public:
 
@@ -463,8 +464,23 @@ namespace pprint {
       return *this;
     }
 
+    PrettyPrinter& inc_indent() {
+      indent_offset_ += indent_;
+      return *this;
+    }
+
+    PrettyPrinter& dec_indent() {
+      indent_offset_ -= indent_;
+      return *this;
+    }
+
     PrettyPrinter& indent(size_t indent) {
       indent_ = indent;
+      return *this;
+    }
+
+    PrettyPrinter& indent_offset( size_t indent_offset ) {
+      indent_offset_ = indent_offset;
       return *this;
     }
 
@@ -480,22 +496,37 @@ namespace pprint {
 
     template <typename T>
     void print(T value) {
-      print_internal(value, 0, line_terminator_, 0);
-    }
-
-    template <typename T>
-    void print(std::initializer_list<T> value) {
-      print_internal(value, 0, line_terminator_, 0);
+      print_internal(value, indent_offset_, line_terminator_, 0);
     }
 
     template<typename T, typename... Targs>
     void print(T value, Targs... Fargs) {
+      print_internal(value, indent_offset_, "", 0);
+      auto current_quotes = quotes_;
+      quotes_ = false;
+      print_internal(" ", 0, "", 0);
+      quotes_ = current_quotes;
+      print_o(Fargs...);
+    }
+
+    template <typename T>
+    void print_o(T value) {
+      print_internal(value, 0, line_terminator_, 0);
+    }
+
+    template<typename T, typename... Targs>
+    void print_o(T value, Targs... Fargs) {
       print_internal(value, 0, "", 0);
       auto current_quotes = quotes_;
       quotes_ = false;
       print_internal(" ", 0, "", 0);
       quotes_ = current_quotes;
-      print(Fargs...);
+      print_o(Fargs...);
+    }
+
+    template <typename T>
+    void print(std::initializer_list<T> value) {
+      print_internal(value, indent_offset_, line_terminator_, 0);
     }
 
     template <typename T>

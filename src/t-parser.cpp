@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 
+#include "ast.hpp"
 #include "parser.hpp"
 #include "pprint.hpp"
 
@@ -37,15 +38,47 @@ void test_lex_basic()
     {
         assert( x == l.next() );
     }
+
+    assert( l.empty() );
 }
 
+void test_lex_small() {
+    lexer l( "a"s );
+    std::vector< lexeme > test_case = {
+        { identifier, "a", 0, 0 }
+    };
+
+    string_generator g( "a" );
+    assert( 'a' == g.next() );
+    assert( g.empty() );
+    
+    for ( const auto& x : test_case )
+        assert( x == l.next() );
+    assert( l.empty() );
+}
+
+
+// TODO: parsing testing
 void sandbox()
 {
-    parser p( "( fun a b -> a + b ) 3 4", 10 ); 
+    parser p( "a + a * a + a * a + a + b * c", 10 );
+
+    p.op_table.insert( { "+"s, { 6, false } } );
+    p.op_table.insert( { "*"s, { 7, false } } );
+    p.op_table.insert( { "$"s, { 1, true } } );
+
+    ast::ast_printer printer{ std::cout };
+    
+    try {
+        printer.accept( p.p_expression() );
+    } catch( parsing_error p ) {
+        std::cerr << p.what() << std::endl;
+    }
 }
 
 void tests_parser()
 {
     test_lex_basic();
+    test_lex_small();
     sandbox();
 }

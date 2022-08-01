@@ -4,10 +4,9 @@
 #include "pprint.hpp"
 #include "values.hpp"
 
-
 void tests_eval()
 {
-    eval< object > e;
+    eval e;
 
     ast::literal< int > int_0( 0 );
     ast::literal< int > int_1( 1 );
@@ -29,6 +28,6 @@ void tests_eval()
                                     , { ast::clone( int_0 ) } );
     
     e.push( ast::clone( call_const_42 ) );
-    e.evaluate();
+    e.run();
 }
 

@@ -1,3 +1,4 @@
+#include "kocky.hpp"
 #include "pprint.hpp"
 #include <cstdio>
 #include <exception>
@@ -11,6 +12,8 @@
 #include <cctype>
 
 #include "ast.hpp"
+
+using namespace std::literals::string_literals;
 
 ///////////////////////////////////////////////////////////////////////////////
 // General parsing state
@@ -41,7 +44,7 @@ struct string_generator
     int next()
     {
         assert( !empty() );
-        return content[ counter++ ];
+        return int( content[ counter++ ] );
     }
     
     int empty()
@@ -60,7 +63,7 @@ struct parsing_state
     using show_value_t = std::function< std::string( const value_t& ) >;
     using on_inc_t = std::function< void( value_t v ) >;
 
-    bool loaded;
+    bool loaded = 0;
     generator_t generator; 
 
     value_t current;
@@ -173,25 +176,51 @@ struct parsing_state
         return v;
     }
 
-    value_t match()
+    bool holds()
     {
-        return pop();
+        return !empty();
+    }
+
+    bool holds( const value_t& v )
+    {
+        return peek() == v;
+    }
+
+    bool holds( fn_pred_t pred )
+    {
+        return pred( peek() );
+    }
+
+    bool holds( pred_t pred )
+    {
+        return pred( peek() );
+    }
+
+    std::optional< value_t > match_p( bool cond )
+    {
+        return cond ? req_pop() : std::optional< value_t >();
+    }
+
+    std::optional< value_t > match()
+    {
+        return match_p( holds() );
     }
 
     std::optional< value_t > match( const value_t& v )
     {
-        return peek() == v ? req_pop() : std::optional< value_t >();
+        return match_p( holds( v ) );
     }
 
     std::optional< value_t > match( fn_pred_t pred )
     {
-        return pred( peek() ) ? req_pop() : std::optional< value_t >();
+        return match_p( holds( pred ) );
     }
 
     std::optional< value_t > match( pred_t pred )
     {
-        return pred( peek() ) ? req_pop() : std::optional< value_t >();
+        return match_p( holds( pred ) );
     }
+
 
 };
 
@@ -331,8 +360,8 @@ struct lexer
                   , nullptr
                   , show_char )
          , newline( newline ) {
-            p_state.on_inc = [&]( int c ){ this->on_inc( c ); };
-         }
+        p_state.on_inc = [&]( int c ){ this->on_inc( c ); };
+    }
 
     void on_inc( int last )
     {
@@ -409,11 +438,11 @@ struct lexer
         if ( sp_it != sp_chars.end() )
             return get_singleton( c, sp_it->second );
 
-        throw parsing_error( std::string( "unknown symbol: '" ) 
+        throw parsing_error( "unknown symbol: '"s
                            + ( c == EOF 
                                 ? "EOF" 
                                 : std::string{ char( c ) } ) 
-                           + "'" );
+                           + "' ("s + std::to_string( c ) + ")" );
     }
 
     bool empty()
@@ -431,16 +460,21 @@ static int istype( const lexeme& l ) { return l.type == t; };
 static int isliteral( const lexeme& l ) { return l.type == literal_bool 
                                               || l.type == literal_number; };
 
-struct operator_data 
-{
-    bool asoc;     
+
+template < lex_type... ls >
+constexpr int isany( const lexeme& l ) { 
+    return ( ( l.type == ls ) || ... );
 };
 
 struct parser 
 {
     using p_state_t = parsing_state< lexer >;
 
-    std::vector< std::map< std::string, operator_data > > operators;
+    // [ priority_layer : ( l_asoc : { op }, r_asoc : { op } ) ]
+    // { name : ( prio, asoc ) } 
+    std::map< std::string, std::pair< int, bool > > op_table;
+
+    int op_prio_depth = 0;
 
     p_state_t p_state; 
 
@@ -449,11 +483,9 @@ struct parser
                  , { sp_eof, "", -1, -1 }
                  , nullptr
                  , show_lexem ) 
+        , op_prio_depth( op_prio_depth )
     {
         p_state.on_inc = [&]( lexeme l ){ this->on_inc( std::move( l ) ); };
-
-        for( int i = 0; i < op_prio_depth; i++ )
-            operators.emplace_back();
     }
 
     void on_inc( lexeme l ) 
@@ -496,9 +528,13 @@ struct parser
         assert( false );
     }
 
+    static bool p_atom_fch( const lexeme& l ) {
+        return isliteral( l ) || isany< lpara, identifier >( l );
+    };
+
     ast::ast_node p_atom()
     {
-        lexeme l = p_state.req_peek();
+        lexeme l = p_state.req_peek( p_atom_fch, "literal, '(' or identifier" );
 
         if ( l.type == lpara ) {
             p_state.req_pop( istype< lpara > );
@@ -514,11 +550,73 @@ struct parser
         assert( false );
     }
 
+    ast::ast_node p_call()
+    {
+        ast::ast_node fun = p_atom(); 
+        std::vector< ast::node_ptr > args;
+        while ( p_state.holds( p_atom_fch ) )
+            args.push_back( clone( p_atom() ) );
+        return args.empty() ? fun : ast::function_call( ast::clone( fun ), args );
+    }
+
+    ast::ast_node p_expression( int layer, bool asoc )
+    {
+        if ( layer == op_prio_depth ) {
+            return p_call();
+        }
+
+        int next_layer = asoc ? layer + 1 : layer;
+        bool next_asoc = ! asoc;
+
+        std::vector< ast::ast_node > nodes{ p_expression( next_layer, next_asoc ) };
+        std::vector< std::string > operators;
+
+        while ( p_state.holds( istype< op > ) )
+        {
+            const lexeme& op_lexeme = p_state.peek();
+            std::string op = op_lexeme.content;
+            const auto& ops = op_table.find( op );
+
+            if ( ops == op_table.end() )
+                throw parsing_error( "operator '"s + op + "' is unknown"s );
+
+            // Here, invariant of p_expression => operator will be processed 
+            // by a parent.
+            const auto& [ op_prio, op_asoc ] = ops->second;
+            if ( op_prio != layer || op_asoc != asoc ) {
+                TRACE( layer, asoc, op );
+                break;
+            }
+
+            p_state.pop();
+            operators.push_back( std::move( op ) );
+            nodes.push_back( p_expression( next_layer, next_asoc ) );
+        }
+
+        // left(-to-right) asociativity 
+        if ( ! asoc ) {
+            ast::ast_node acc = std::move( nodes[ 0 ] );
+            for ( int i = 0; i < operators.size(); i++ )
+                acc = ast::function_call( 
+                    ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
+                    { ast::clone( std::move( acc ) )
+                    , ast::clone( std::move( nodes[ i + 1 ] ) ) } );
+            return acc;
+        // right(-to-left ) asociativity 
+        } else {
+            ast::ast_node acc = std::move( nodes[ operators.size() ] );
+            for ( int i = operators.size() - 1; i >= 0; i-- ) 
+                acc = ast::function_call( 
+                    ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
+                    { ast::clone( std::move( nodes[ i ] ) )
+                    , ast::clone( std::move( acc ) ) } );
+            return acc;
+        }
+    }
+
     ast::ast_node p_expression()
     {
-        std::vector< ast::ast_node > atoms;
-
-        // TODO: expression parsing
+        return p_expression( 0, false );
     }
 
 };
