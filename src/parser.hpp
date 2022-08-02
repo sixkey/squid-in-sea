@@ -2,6 +2,7 @@
 #include "pprint.hpp"
 #include <cstdio>
 #include <exception>
+#include <istream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -30,6 +31,23 @@ struct parsing_error : public std::exception {
         return const_cast< char* >( message.c_str() );
     }
 
+};
+
+struct istream_generator
+{
+    using value_t = int;
+
+    std::istream stream;
+
+    int next()
+    {
+        return stream.get();
+    }
+
+    int empty()
+    {
+        return stream.eof();
+    }
 };
 
 struct string_generator 
