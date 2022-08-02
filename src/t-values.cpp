@@ -17,9 +17,9 @@ void test_pattern ()
 
     auto fun_test = [] ( const auto &f, const auto &o, const matching_t &m, const auto& e  ) {
         auto res = match( f, o );
-        if ( ! res.has_value() ) { assert( false ); }
-        assert( res.value().first  == m );
-        assert( res.value().second == e );
+        if ( ! res.isright() ) { assert( false ); }
+        assert( res.right().first  == m );
+        assert( res.right().second == e );
     };
 
     auto fail_test = [] ( const pattern &p, const object &o ) {

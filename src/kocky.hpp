@@ -3,6 +3,7 @@
 #include <string>
 #include <variant> 
 #include <cassert> 
+#include "pprint.hpp"
 
 #define NOT_IMPLEMENTED() throw std::runtime_error("NOT IMPLEMENTED");
 #define TODO()            throw std::runtime_error("TODO");
@@ -20,6 +21,14 @@ namespace kck
     std::string to_string( std::variant< Ts... > v )
     {
         return std::visit( [&]( auto &p ){ return std::to_string( p ); }, v );
+    }
+
+    template < typename T > 
+    std::string stringify( const T& t )
+    {
+        std::stringstream ss;
+        ss << t;
+        return ss.str();
     }
 
     template < typename P, typename Q >

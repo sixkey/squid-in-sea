@@ -2,6 +2,7 @@
 
 #include <map>
 #include <stdexcept>
+#include <variant>
 #include <vector>
 #include "values.hpp"
 #include "pattern.hpp"
@@ -11,6 +12,11 @@ struct edge {
     pattern a; 
     pattern b; 
     identifier_t id;
+
+    friend std::ostream& operator<<( std::ostream& os, const edge& e )
+    {
+        return os << e.id << " : " << e.a << " -> " << e.b;
+    }
 };
 
 using edges_t   = std::multimap< identifier_t, edge >;
@@ -56,8 +62,8 @@ class pattern_graph {
         if ( on_pattern( current, data, id_path ) ) 
             return true;
 
-        if ( const auto *var = std::get_if< variable_pattern >( &current ) ) {
-            auto ran = _edges.equal_range( var->variable_name );
+        if ( ! std::holds_alternative< variable_pattern >( current ) ) {
+            auto ran = _edges.equal_range( get_name( current ) );
             for ( auto i = ran.first; i != ran.second; i ++ ) {
                 auto e = i->second;
                 if ( contains( e.a, current ) ) {

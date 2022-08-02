@@ -108,9 +108,9 @@ struct fun_call
             values.push_back( eval.state.pop_value() );
 
         auto result = match( fun, values );
-        if ( !result.has_value() )
-            throw std::runtime_error( "no pattern match" );
-        const auto &[ matching, evaluable ] = result.value();
+        if ( result.isleft() )
+            throw std::runtime_error( "no pattern match: "s + result.left() );
+        const auto &[ matching, evaluable ] = result.right();
 
         eval.state.push_cell( fun_cleanup< eval_t >( std::move( fun ) ) );
         eval.state._store.scopes.add_scope();
@@ -464,17 +464,17 @@ struct eval
 
     void run()
     {
-        pprint::PrettyPrinter printer;
+        //pprint::PrettyPrinter printer;
         while( !state._cells.empty() )
         {
             run_top();
-            printer.print( "STEP" );
-            printer.print( "Cells" );
-            printer.print( state._cells );
-            printer.print( "Values" );
-            printer.print( state._values );
-            printer.print( "Store" );
-            printer.print( state._store );
+            //printer.print( "STEP" );
+            //printer.print( "Cells" );
+            //printer.print( state._cells );
+            //printer.print( "Values" );
+            //printer.print( state._values );
+            //printer.print( "Store" );
+            //printer.print( state._store );
         }
     }
 

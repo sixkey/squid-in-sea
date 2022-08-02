@@ -599,10 +599,8 @@ struct parser
             // Here, invariant of p_expression => operator will be processed 
             // by a parent.
             const auto& [ op_prio, op_asoc ] = ops->second;
-            if ( op_prio != layer || op_asoc != asoc ) {
-                TRACE( layer, asoc, op );
+            if ( op_prio != layer || op_asoc != asoc ) 
                 break;
-            }
 
             p_state.pop();
             operators.push_back( std::move( op ) );
@@ -709,7 +707,7 @@ struct parser
         if ( paths.empty() )
             throw parsing_error( "there are no function paths" );
 
-        return { std::move( paths ), };
+        return { std::move( paths ), arity };
     }
 
 };

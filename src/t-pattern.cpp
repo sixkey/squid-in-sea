@@ -1,6 +1,7 @@
 #include <assert.h> 
 
 #include "pattern.hpp"
+#include "kocky.hpp"
 
 void test_contains()
 {

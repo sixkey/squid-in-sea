@@ -12,6 +12,10 @@
 #include "ast.hpp"
 #include "pattern.hpp"
 
+#include "k-either.hpp"
+
+using namespace std::literals::string_literals; 
+
 template< typename evaluable_t_ >
 struct function_path 
 {
@@ -45,6 +49,11 @@ struct function_object
                    , arity_( arity ) {};
 
     bool operator ==( const function_object &o ) const { return true; };
+
+    friend std::ostream& operator <<( std::ostream& os, const function_object& f )
+    {
+        return os << "<fun> " << f.arity_;
+    }
 
     std::string to_string() const { return "<fun>"; };
 
@@ -220,32 +229,48 @@ bool match( const literal_pattern< T >& p, const object< value_t >& o, matching_
 }
 
 template < typename value_t, typename evaluable_t >
-std::optional< matching_t< value_t > > match
+either< std::string, matching_t< value_t > > match
     ( const function_path< evaluable_t >& f_path
     , const std::vector< object< value_t > >& objects )
 {
     if ( objects.size() != f_path.input_patterns.size() )
-        return {};
+        return "the number of arguments does not match"s;
     matching_t< value_t > matching; 
-    for ( int i = 0; i < objects.size(); i ++ ) 
-        if ( ! match( f_path.input_patterns[ i ], objects[ i ], matching ) )
-            return {};
-    return matching; 
+    for ( int i = 0; i < objects.size(); i ++ ) {
+        if ( ! match( f_path.input_patterns[ i ], objects[ i ], matching ) ) {
+            std::stringstream msg;
+            msg << f_path.input_patterns[ i ] 
+                << " not in " 
+                << objects[ i ];
+            return msg.str();
+        }
+    }
+    return std::move( matching ); 
 }
 
 template < typename value_t, typename evaluable_t >
-std::optional< std::pair< matching_t< value_t >, evaluable_t > > match
+either< std::string, std::pair< matching_t< value_t >, evaluable_t > > match
     ( const function_object< evaluable_t >& funobj
     , const std::vector< object< value_t > >& objects )
 {
     if ( objects.size() != funobj.arity() ) 
-        return {};
+        return "expected "s 
+             + std::to_string( funobj.arity() ) 
+             + " arguments but got " 
+             + std::to_string( objects.size() );
+    
+    std::string message;
+
     for ( const auto& f_path : funobj.paths ) {
+
         auto res = match( f_path, objects );
-        if ( res.has_value() )
-            return std::pair{ res.value(), f_path.evaluable };
+        if ( res.isright() )
+            return std::pair{ res.right(), f_path.evaluable };
+        else 
+            message.append( std::move( res.left() ) );
     }
-    return {};
+
+    return message;
 }
 
 void tests_values();
