@@ -21,6 +21,17 @@ using ast_node = std::variant< variable
                              , function_def
                              , literal< int >
                              , literal< bool > >;
+
+template< typename value_t >
+struct literal_pattern;
+struct variable_pattern;
+struct object_pattern;
+
+using pattern = std::variant< ast::literal_pattern< int >
+                            , ast::literal_pattern< bool >
+                            , ast::variable_pattern
+                            , ast::object_pattern >;
+
 using node_ptr = std::shared_ptr< ast_node >;
 
 struct ast_printer;
@@ -51,18 +62,8 @@ struct function_call
 };
 
 template< typename value_t >
-struct literal_pattern;
-struct variable_pattern;
-struct object_pattern;
-
-using pattern = std::variant< ast::literal_pattern< int >
-                            , ast::variable_pattern
-                            , ast::object_pattern >;
-
-template< typename value_t >
 struct literal_pattern
 {
-    identifier_t name;
     value_t value;
 };
 
@@ -144,9 +145,8 @@ struct ast_printer
     template< typename value_t > 
     void accept( const literal_pattern< value_t >& l )
     {
-        printer.print( "LiteralPattern", l.name, l.value );
+        printer.print( "LiteralPattern", l.value );
     }
-
 
     void accept( const variable_pattern& v )
     {
@@ -155,7 +155,7 @@ struct ast_printer
 
     void accept( const object_pattern& o )
     {
-        printer.print( "ObjectPattern" );
+        printer.print( "ObjectPattern", o.name );
         indent();
         for ( const auto& c : o.patterns )
             accept( c );
@@ -177,6 +177,7 @@ struct ast_printer
             accept( pat );
         dedent();
         accept( p.output_pattern );
+        accept( *p.expression );
         dedent();
     }
 

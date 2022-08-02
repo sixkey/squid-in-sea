@@ -63,9 +63,10 @@ void test_run()
     using eval_t = eval;
     using builtin_t = std::function< void( eval_t& ) >;
 
-    parser p( "( 3 + 4 ) * 4", 10 );
+    parser p( "( fun |- a b -> a + b |- a b -> a - b ) 3 4", 10 );
 
     p.op_table.insert( { "+"s, { 6, false } } );
+    p.op_table.insert( { "-"s, { 6, false } } );
     p.op_table.insert( { "*"s, { 7, false } } );
 
     eval_t e;

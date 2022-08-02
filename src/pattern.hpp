@@ -26,6 +26,7 @@ struct literal_pattern;
 
 using pattern = std::variant< variable_pattern
                             , literal_pattern< int >
+                            , literal_pattern< bool >
                             , object_pattern >;
 
 struct variable_pattern {

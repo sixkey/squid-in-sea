@@ -61,9 +61,17 @@ void test_lex_small() {
 // TODO: parsing testing
 void sandbox()
 {
-    parser p( "a + a * a + a * a + a + b * c", 10 );
+
+    lexer l( "fun |- a b -> a + b", 10 );
+    while ( ! l.empty() )
+    {
+        TRACE( l.next() );
+    }
+    
+    parser p( "( fun |- < Int a > < Int b > -> a + b |- a b -> a - b ) 3 4", 10 );
 
     p.op_table.insert( { "+"s, { 6, false } } );
+    p.op_table.insert( { "-"s, { 6, false } } );
     p.op_table.insert( { "*"s, { 7, false } } );
     p.op_table.insert( { "$"s, { 1, true } } );
 
@@ -74,6 +82,8 @@ void sandbox()
     } catch( parsing_error p ) {
         std::cerr << p.what() << std::endl;
     }
+    
+    assert( p.p_state.empty() );
 }
 
 void tests_parser()

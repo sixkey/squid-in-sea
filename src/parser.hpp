@@ -269,7 +269,8 @@ const std::map< std::string, lex_type > keywords = {
     { "false",  literal_bool },
     { "->",     sym_rarrow },
     { "=>",     sym_prod },
-    { ":=",     sym_assign }
+    { ":=",     sym_assign },
+    { "|-",     sym_fun_path }
 };
 
 const std::map< int, lex_type > sp_chars = {
@@ -321,6 +322,8 @@ static int isspecial( int c ) {
         case '?':
         case '$':
         case '.':
+        case '|':
+        case '&':
             return true;
     }
     return false;
@@ -459,6 +462,9 @@ template < lex_type t >
 static int istype( const lexeme& l ) { return l.type == t; };  
 static int isliteral( const lexeme& l ) { return l.type == literal_bool 
                                               || l.type == literal_number; };
+static int pat_start( const lexeme& l ) { return l.type == op && l.content == "<"; };
+static int pat_end( const lexeme& l ) { return l.type == op && l.content == ">"; };
+                        
 
 
 template < lex_type... ls >
@@ -501,44 +507,48 @@ struct parser
         return ast::variable( p_identifier() );
     }
 
-    ast::literal< int > p_number()
-    {
+    int p_number() {
         lexeme l = p_state.req_pop( istype< literal_number > ); 
         int content = 0; 
         for ( char c : l.content ) {
             content *= 10;
             content += c - '0';
         }
-        return ast::literal< int >( content );
+        return content;
     }
 
-    ast::literal< bool > p_bool()
+    bool p_bool()
     {
         lexeme l = p_state.req_pop( istype< literal_bool > );
-        return l.content == "true" 
-            ? ast::literal< bool >( true )
-            : ast::literal< bool >( false );
+        return l.content == "true";
     }
 
-    ast::ast_node p_literal()
+    template < template < typename T > class wrapper_t, typename R >
+    R p_literal_template()
     {
-        lexeme l = p_state.req_peek( isliteral );
+        lexeme l = p_state.req_peek( isliteral, "literal" );
 
         if ( l.type == literal_number )
-            return p_number();
+            return wrapper_t< int >{ p_number() };
         if ( l.type == literal_bool )
-            return p_bool();
+            return wrapper_t< bool >{ p_bool() };
 
         assert( false );
     }
 
+    ast::ast_node p_literal()
+    {
+        return p_literal_template< ast::literal, ast::ast_node >();
+    }
+    
+
     static bool p_atom_fch( const lexeme& l ) {
-        return isliteral( l ) || isany< lpara, identifier >( l );
+        return isliteral( l ) || isany< lpara, identifier, kw_fun >( l );
     };
 
     ast::ast_node p_atom()
     {
-        lexeme l = p_state.req_peek( p_atom_fch, "literal, '(' or identifier" );
+        lexeme l = p_state.req_peek( p_atom_fch, "literal, '(', identifier or function definition" );
 
         if ( l.type == lpara ) {
             p_state.req_pop( istype< lpara > );
@@ -550,6 +560,8 @@ struct parser
             return p_variable();
         if ( isliteral( l ) )
             return p_literal();
+        if ( istype< kw_fun >( l ) )
+            return p_fundef();
 
         assert( false );
     }
@@ -621,6 +633,83 @@ struct parser
     ast::ast_node p_expression()
     {
         return p_expression( 0, false );
+    }
+
+    ast::variable_pattern p_variable_pattern()
+    {
+        return ast::variable_pattern{ p_identifier() };
+    }
+
+    ast::pattern p_literal_pattern()
+    {
+        return p_literal_template< ast::literal_pattern, ast::pattern >();
+    }
+
+    ast::object_pattern p_object_pattern()
+    {
+        p_state.req_pop( pat_start, "<" );
+        std::string identifier = p_identifier();
+        std::vector< ast::pattern > children;
+        while ( ! p_state.match( pat_end ) )
+            children.push_back( p_pattern() );
+        return ast::object_pattern{ identifier, std::move( children ) };
+    }
+
+    static int p_pattern_fch( const lexeme& l ) 
+    {
+        return istype< identifier >( l ) || pat_start( l ) || isliteral( l );
+    }
+
+    ast::pattern p_pattern()
+    {
+        lexeme l = p_state.req_peek( p_pattern_fch, "identifier, '<' or literal" );
+
+        if ( istype< identifier >( l ) ) 
+            return p_variable_pattern();
+        if ( pat_start( l ) ) 
+            return p_object_pattern();
+        if ( isliteral( l ) )
+            return p_literal_pattern();
+        
+        assert( false );
+    }
+
+    ast::function_path p_funpath()
+    {
+        p_state.req_pop( istype< sym_fun_path >, "|-" );
+    
+        std::vector< ast::pattern > patterns{ p_pattern() };
+
+        while ( ! p_state.match( istype< sym_rarrow > ) )
+            patterns.push_back( p_pattern() );
+
+        ast::ast_node expr = p_expression();
+        
+        return { std::move( patterns ), ast::variable_pattern{ "_" }, ast::clone( expr ) };
+    }
+
+    ast::function_def p_fundef()
+    {
+        p_state.req_pop( istype< kw_fun > );
+
+        std::vector< ast::function_path > paths;
+
+        int arity = 0;
+        
+        while ( p_state.holds( istype< sym_fun_path > ) ) {
+            ast::function_path p = p_funpath();
+
+            if ( ! paths.empty() && p.input_patterns.size() != arity ) 
+                throw parsing_error( "the number of arguments does not match" );
+            arity = p.input_patterns.size();
+
+            paths.push_back( std::move( p ) );
+        }
+
+        if ( paths.empty() )
+            throw parsing_error( "there are no function paths" );
+
+        return { std::move( paths ), };
     }
 
 };

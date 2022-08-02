@@ -247,7 +247,7 @@ public:
     template< typename T >
     static literal_pattern< T > tran_pattern( const ast::literal_pattern< T >& p )
     {
-        return literal_pattern< T >( p.name, p.value );
+        return literal_pattern< T >( eval_t::types::template type_name<T>(), p.value );
     }
 
     static variable_pattern tran_pattern( const ast::variable_pattern& p )
@@ -265,7 +265,9 @@ public:
 
     static pattern tran_pattern( const ast::pattern& p )
     {
-        return std::visit( [&]( const auto& v ){ return pattern{ eval_translator::tran_pattern( v ) }; }, p );
+        return std::visit( [&]( const auto& v ){ 
+            return pattern{ eval_translator::tran_pattern( v ) }; 
+        }, p );
     }
 
     static function_path< evaluable_t > translate_path( const ast::function_path& p )
