@@ -530,30 +530,53 @@ struct parser
                  , show_lexem ) 
         , op_prio_depth( op_prio_depth ) {}
 
+    std::stack< std::string > stack_trace;
+
+    void tpush( std::string s )
+    {
+        stack_trace.push( s );
+    }
+
+    void tpop()
+    {
+        // stack_trace.pop();
+    }
+
+    template < typename T > 
+    T rpop( T t ) { 
+        tpop();
+        return t; 
+    }
+
     std::string p_identifier()
     {
-        return p_state.req_pop( istype< identifier > ).content;
+        tpush( "identifier" );
+        return rpop( p_state.req_pop( istype< identifier > ).content );
     }
 
     ast::variable p_variable()
     {
-        return ast::variable( p_identifier() );
+        tpush( "variable" );
+        return rpop( ast::variable( p_identifier() ) );
     }
 
     int p_number() {
+        tpush( "number" );
         lexeme l = p_state.req_pop( istype< literal_number > ); 
         int content = 0; 
         for ( char c : l.content ) {
             content *= 10;
             content += c - '0';
         }
+        tpop();
         return content;
     }
 
     bool p_bool()
     {
+        tpush( "bool" );
         lexeme l = p_state.req_pop( istype< literal_bool > );
-        return l.content == "true";
+        return rpop( l.content == "true" );
     }
 
     template < template < typename T > class wrapper_t, typename R >
@@ -571,47 +594,57 @@ struct parser
 
     ast::ast_node p_literal()
     {
-        return p_literal_template< ast::literal, ast::ast_node >();
+        tpush( "literal" );
+        return rpop( std::move ( p_literal_template< ast::literal, ast::ast_node >() ) );
     }
     
 
-    static bool p_atom_fch( const lexeme& l ) {
+    static bool p_atom_start_lex( const lexeme& l ) {
         return isliteral( l ) || isany< lpara, identifier, kw_fun >( l );
     };
 
     ast::ast_node p_atom()
     {
-        lexeme l = p_state.req_peek( p_atom_fch, "literal, '(', identifier or function definition" );
+        tpush( "atom" );
+        lexeme l = p_state.req_peek( p_atom_start_lex, "literal, '(', identifier or function definition" );
 
         if ( l.type == lpara ) {
             p_state.req_pop( istype< lpara > );
             ast::ast_node expr = p_expression();
             p_state.req_pop( istype< rpara > );
-            return std::move( expr );
+            return rpop( std::move( expr ) );
         }
         if ( l.type == identifier )
-            return p_variable();
+            return rpop( p_variable() );
         if ( isliteral( l ) )
-            return p_literal();
+            return rpop( p_literal() );
         if ( istype< kw_fun >( l ) )
-            return p_fundef();
+            return rpop( p_fundef() );
 
         assert( false );
     }
 
     ast::ast_node p_call()
     {
+        tpush( "call" );
+        tpush( "call - fun" );
         ast::ast_node fun = p_atom(); 
+        tpop();
         std::vector< ast::node_ptr > args;
-        while ( p_state.holds( p_atom_fch ) )
+        tpush( "call - arguments" );
+        while ( p_state.holds( p_atom_start_lex ) )
             args.push_back( clone( p_atom() ) );
-        return args.empty() ? fun : ast::function_call( ast::clone( fun ), args );
+        tpop();
+        return rpop( args.empty() 
+                        ? fun 
+                        : ast::function_call( ast::clone( fun ), args ) );
     }
 
     ast::ast_node p_expression( int layer, bool asoc )
     {
+        tpush( "expression(" + std::to_string( layer ) + ")");
         if ( layer == op_prio_depth ) {
-            return p_call();
+            return rpop( p_call() );
         }
 
         int next_layer = asoc ? layer + 1 : layer;
@@ -648,42 +681,46 @@ struct parser
                     ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
                     { ast::clone( std::move( acc ) )
                     , ast::clone( std::move( nodes[ i + 1 ] ) ) } );
-            return acc;
+            return rpop( std::move( acc ) );
         // right(-to-left ) asociativity 
-        } else {
-            ast::ast_node acc = std::move( nodes[ operators.size() ] );
-            for ( int i = operators.size() - 1; i >= 0; i-- ) 
-                acc = ast::function_call( 
-                    ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
-                    { ast::clone( std::move( nodes[ i ] ) )
-                    , ast::clone( std::move( acc ) ) } );
-            return acc;
-        }
+        } 
+
+        ast::ast_node acc = std::move( nodes[ operators.size() ] );
+        for ( int i = operators.size() - 1; i >= 0; i-- ) 
+            acc = ast::function_call( 
+                ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
+                { ast::clone( std::move( nodes[ i ] ) )
+                , ast::clone( std::move( acc ) ) } );
+        return rpop( std::move( acc ) );
     }
 
     ast::ast_node p_expression()
     {
-        return p_expression( 0, false );
+        tpush( "expression" );
+        return rpop( p_expression( 0, false ) );
     }
 
     ast::variable_pattern p_variable_pattern()
     {
-        return ast::variable_pattern{ p_identifier() };
+        tpush( "variable pattern" );
+        return rpop( ast::variable_pattern{ p_identifier() } );
     }
 
     ast::pattern p_literal_pattern()
     {
-        return p_literal_template< ast::literal_pattern, ast::pattern >();
+        tpush( "literal pattern" );
+        return rpop( p_literal_template< ast::literal_pattern, ast::pattern >() );
     }
 
     ast::object_pattern p_object_pattern()
     {
+        tpush( "object pattern" );
         p_state.req_pop( pat_start, "<" );
         std::string identifier = p_identifier();
         std::vector< ast::pattern > children;
         while ( ! p_state.match( pat_end ) )
             children.push_back( p_pattern() );
-        return ast::object_pattern{ identifier, std::move( children ) };
+        return rpop( ast::object_pattern{ identifier, std::move( children ) } );
     }
 
     static int p_pattern_fch( const lexeme& l ) 
@@ -693,34 +730,43 @@ struct parser
 
     ast::pattern p_pattern()
     {
+        tpush( "pattern" );
         lexeme l = p_state.req_peek( p_pattern_fch, "identifier, '<' or literal" );
 
         if ( istype< identifier >( l ) ) 
-            return p_variable_pattern();
+            return rpop( p_variable_pattern() );
         if ( pat_start( l ) ) 
-            return p_object_pattern();
+            return rpop( p_object_pattern() );
         if ( isliteral( l ) )
-            return p_literal_pattern();
+            return rpop( p_literal_pattern() );
         
         assert( false );
     }
 
     ast::function_path p_funpath()
     {
+        tpush( "function path" );
         p_state.req_pop( istype< sym_fun_path >, "|-" );
     
         std::vector< ast::pattern > patterns{ p_pattern() };
 
+        tpush( "function path - patterns" );
         while ( ! p_state.match( istype< sym_rarrow > ) )
             patterns.push_back( p_pattern() );
+        tpop();
 
+        tpush( "function path - expression" );
         ast::ast_node expr = p_expression();
+        tpop();
         
-        return { std::move( patterns ), ast::variable_pattern{ "_" }, ast::clone( expr ) };
+        return rpop( ast::function_path{ std::move( patterns )
+                                       , ast::variable_pattern{ "_" }
+                                       , ast::clone( expr ) } );
     }
 
     ast::function_def p_fundef()
     {
+        tpush( "function definition" );
         p_state.req_pop( istype< kw_fun > );
 
         std::vector< ast::function_path > paths;
@@ -740,7 +786,7 @@ struct parser
         if ( paths.empty() )
             throw parsing_error( "there are no function paths" );
 
-        return { std::move( paths ), arity };
+        return rpop( ast::function_def{ std::move( paths ), arity } );
     }
 
 };

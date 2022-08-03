@@ -101,6 +101,8 @@ struct ast_printer
 
     size_t offset;
 
+    ast_printer( pprint::PrettyPrinter printer ) : printer( printer ) {};
+
     void indent()
     {
         printer.indent_offset( offset += 2 );

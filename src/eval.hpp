@@ -132,6 +132,7 @@ struct fun_args
     using evaluable_t  = typename eval_t::types::evaluable_t;
     using ast_node_ptr = typename eval_t::ast_node_ptr;
 
+    // arguments s.t. the last in the vector should be evaluated first
     std::vector< ast_node_ptr > args;
 
     fun_args( std::vector< ast_node_ptr > args ) : args( args ) {};
@@ -144,7 +145,7 @@ struct fun_args
 
         fun_obj_t fun = obj.template get_value< fun_obj_t >();
 
-        int arity = std::max< int >( fun.arity(), args.size() );
+        int arity = std::min< int >( fun.arity(), args.size() );
 
         int index = -1;
 
@@ -179,6 +180,8 @@ struct fun_init
     using ast_node_ptr = typename eval_t::ast_node_ptr;
 
     ast_node_ptr fun_ast;
+
+    // arguments s.t. the last in the vector should be evaluated first
     std::vector< ast_node_ptr > args;
 
     fun_init
@@ -241,7 +244,9 @@ public:
 
     static eval_cell_t accept( const ast::function_call& f ) 
     {
-        return fun_init< eval_t >( f.fun, f.args );
+        auto arguments = f.args;
+        std::reverse( arguments.begin(), arguments.end() );
+        return fun_init< eval_t >( f.fun, arguments );
     }
 
     template< typename T >
