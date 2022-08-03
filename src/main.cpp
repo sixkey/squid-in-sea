@@ -42,9 +42,7 @@ int main( int argc, char** argv )
     e.state._store.scopes.add_scope();
     
     try {
-
         auto printer = ast::ast_printer( pprint::PrettyPrinter( std::cout ) );
-
         e.push( p.p_expression() );
         e.run();
         TRACE( e.state._values ); 

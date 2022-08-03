@@ -743,25 +743,29 @@ struct parser
         assert( false );
     }
 
-    ast::function_path p_funpath()
-    {
-        tpush( "function path" );
-        p_state.req_pop( istype< sym_fun_path >, "|-" );
-    
+    ast::function_path p_funpath_mapping() { 
+        tpush( "function path mapping" );
         std::vector< ast::pattern > patterns{ p_pattern() };
 
-        tpush( "function path - patterns" );
+        tpush( "function path mapping - patterns" );
         while ( ! p_state.match( istype< sym_rarrow > ) )
             patterns.push_back( p_pattern() );
         tpop();
 
-        tpush( "function path - expression" );
+        tpush( "function path mapping - expression" );
         ast::ast_node expr = p_expression();
         tpop();
         
         return rpop( ast::function_path{ std::move( patterns )
                                        , ast::variable_pattern{ "_" }
                                        , ast::clone( expr ) } );
+    }
+
+    ast::function_path p_funpath()
+    {
+        tpush( "function path" );
+        p_state.req_pop( istype< sym_fun_path >, "|-" );
+        return rpop( std::move( p_funpath_mapping() ) );
     }
 
     ast::function_def p_fundef()
@@ -772,6 +776,12 @@ struct parser
         std::vector< ast::function_path > paths;
 
         int arity = 0;
+
+        if ( ! p_state.holds( istype< sym_fun_path > ) ) {
+            auto fpath = p_funpath_mapping();
+            arity = fpath.input_patterns.size();
+            paths.push_back( std::move( fpath ) );
+        }
         
         while ( p_state.holds( istype< sym_fun_path > ) ) {
             ast::function_path p = p_funpath();
