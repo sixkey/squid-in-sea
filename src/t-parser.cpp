@@ -7,7 +7,7 @@
 
 void test_lex_basic()
 {
-    lexer l( "f := fun a b -> ( a + b );\n g := fun c d -> a + b;" );
+    lexer_str l( "f := fun a b -> ( a + b );\n g := fun c d -> a + b;"s );
     
     std::vector< lexeme > test_case = {
         { identifier, "f", 0, 0 },
@@ -43,7 +43,7 @@ void test_lex_basic()
 }
 
 void test_lex_small() {
-    lexer l( "a"s );
+    lexer_str l( "a"s );
     std::vector< lexeme > test_case = {
         { identifier, "a", 0, 0 }
     };
@@ -61,7 +61,7 @@ void test_lex_small() {
 // TODO: parsing testing
 void sandbox()
 {
-    parser p( "( fun |- < Int a > < Int b > -> a + b |- a b -> a - b ) 3 4", 10 );
+    parser_str p( { "( fun |- < Int a > < Int b > -> a + b |- a b -> a - b ) 3 4" } , 10 );
 
     p.op_table.insert( { "+"s, { 6, false } } );
     p.op_table.insert( { "-"s, { 6, false } } );

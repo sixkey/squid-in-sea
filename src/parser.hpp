@@ -33,15 +33,19 @@ struct parsing_error : public std::exception {
 
 };
 
+template < typename stream_t >
 struct istream_generator
 {
     using value_t = int;
 
-    std::istream stream;
+    stream_t stream;
+
+    istream_generator( stream_t stream ) : stream( std::move( stream ) ) {};
 
     int next()
     {
-        return stream.get();
+        int value = stream.get();
+        return value;
     }
 
     int empty()
@@ -72,36 +76,35 @@ struct string_generator
 
 };
 
-template < typename generator_t >
+template < typename generator_t, typename metadata_t >
 struct parsing_state
 {
     using value_t = typename generator_t::value_t;
     using fn_pred_t = std::function< int( value_t v ) >;
     using pred_t = int(value_t);
     using show_value_t = std::function< std::string( const value_t& ) >;
-    using on_inc_t = std::function< void( value_t v ) >;
 
     bool loaded = 0;
     generator_t generator; 
 
     value_t current;
 
-    on_inc_t on_inc;
+    metadata_t meta;
     value_t def; 
     show_value_t show_value;
 
     parsing_state( generator_t content
+                 , metadata_t meta 
                  , value_t def
-                 , on_inc_t on_inc
                  , show_value_t show_value ) 
                  : generator( std::move( content ) )
-                 , on_inc( on_inc )
                  , def( def ) 
+                 , meta( std::move( meta ) ) 
                  , show_value( show_value ) {}
                     
     void inc()
     {
-        on_inc( std::move( current ) );
+        meta.on_inc( std::move( current ) );
         loaded = false;
     }
 
@@ -360,29 +363,14 @@ static std::string show_lexem( const lexeme& l )
     return ss.str();
 }
 
-struct lexer 
-{
-
-    parsing_state< string_generator > p_state;
-    using value_t = lexeme;
-
-    std::string buffer;
-    int lex_row = 0;
-    int lex_col = 0;
+struct row_col {
 
     int newline = '\n';
 
     int row = 0; 
     int col = 0;
 
-    lexer( std::string input, int newline = '\n' ) 
-         : p_state( { input }
-                  , EOF
-                  , nullptr
-                  , show_char )
-         , newline( newline ) {
-        p_state.on_inc = [&]( int c ){ this->on_inc( c ); };
-    }
+    row_col( int newline ) : newline( newline ) {};
 
     void on_inc( int last )
     {
@@ -392,6 +380,23 @@ struct lexer
             col = 0;         
         }
     }
+};
+
+template < typename generator_t >
+struct lexer 
+{
+    parsing_state< generator_t, row_col > p_state;
+    using value_t = lexeme;
+
+    std::string buffer;
+    int lex_row = 0;
+    int lex_col = 0;
+
+    lexer( generator_t g , int newline = '\n' ) 
+         : p_state( std::move ( g ) 
+                  , row_col( newline )
+                  , EOF
+                  , show_char ) {}
 
     lexeme flush_lex( lex_type t )
     {
@@ -448,8 +453,9 @@ struct lexer
         if ( c == EOF )
             return flush_lex( sp_eof );
 
-        lex_row = row;
-        lex_col = col;
+
+        lex_row = p_state.meta.row;
+        lex_col = p_state.meta.col;
 
         if ( std::isdigit( c ) ) return get_lit_number();                     
         if ( isidstart( c ) )    return get_identifier();
@@ -490,9 +496,24 @@ constexpr int isany( const lexeme& l ) {
     return ( ( l.type == ls ) || ... );
 };
 
+template < typename T >
+struct meta_unit
+{
+    void on_inc( T t ) {};
+};
+
+template < typename T >
+struct meta_trace
+{
+    void on_inc( T t ) {
+        TRACE( t );
+    };
+};
+
+template < typename generator_t > 
 struct parser 
 {
-    using p_state_t = parsing_state< lexer >;
+    using p_state_t = parsing_state< lexer< generator_t >, meta_unit< lexeme > >;
 
     // [ priority_layer : ( l_asoc : { op }, r_asoc : { op } ) ]
     // { name : ( prio, asoc ) } 
@@ -502,18 +523,12 @@ struct parser
 
     p_state_t p_state; 
 
-    parser( std::string content, int op_prio_depth )
-        : p_state( lexer( std::move( content ) ) 
+    parser( generator_t generator, int op_prio_depth )
+        : p_state( lexer( std::move( generator ) ) 
+                 , meta_unit< lexeme >{}
                  , { sp_eof, "", -1, -1 }
-                 , nullptr
                  , show_lexem ) 
-        , op_prio_depth( op_prio_depth )
-    {
-        p_state.on_inc = [&]( lexeme l ){ this->on_inc( std::move( l ) ); };
-    }
-
-    void on_inc( lexeme l ) 
-    {}
+        , op_prio_depth( op_prio_depth ) {}
 
     std::string p_identifier()
     {
@@ -729,5 +744,8 @@ struct parser
     }
 
 };
+
+using lexer_str = lexer< string_generator >;
+using parser_str = parser< string_generator >;
 
 void tests_parser();
