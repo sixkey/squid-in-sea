@@ -1,3 +1,4 @@
+#include "ast.hpp"
 #include "pattern.hpp"
 #include "pattern_graph.hpp"
 #include "eval.hpp"
@@ -43,7 +44,12 @@ int main( int argc, char** argv )
     
     try {
         auto printer = ast::ast_printer( pprint::PrettyPrinter( std::cout ) );
-        e.push( p.p_expression() );
+        auto expr = p.p_expression();
+        
+        TRACE( ast::ast_free_vars::free_variables( expr ) );
+
+        // printer.accept( expr );
+        e.push( std::move( expr ) );
         e.run();
         TRACE( e.state._values ); 
     } catch( parsing_error &e ) {

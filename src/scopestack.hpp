@@ -1,48 +1,113 @@
+#include "k-either.hpp"
 #include "pprint.hpp"
 #include <map>
 #include <ostream>
 #include <vector>
 
 template < typename identifier_t, typename store_id >
-struct scopestack
+struct bindings_tree
 {
-    using scope = std::map< identifier_t, store_id >;
-    std::vector< scope > scopes;
+    struct bindings_node;
+
+    using bindings_t = std::map< identifier_t, store_id >;
+    using bindings_node_ptr = std::unique_ptr< bindings_node >;
+
+    struct bindings_node 
+    {
+        bindings_node* parent = nullptr;
+        std::vector< bindings_node_ptr > children;
+        std::vector< bindings_t > bindings;
+
+        bindings_node( bindings_node* parent ) : parent( parent ) {};
+        bindings_node() {};
+
+        friend std::ostream& operator<<( std::ostream& os, struct bindings_node& node )
+        {
+            pprint::PrettyPrinter printer( os );
+            printer.print( node.bindings );
+            for ( const auto& child : node.children )
+                os << *child;
+            return os;
+        }
+    };
+
+    bindings_node_ptr root;
+    bindings_node* head = nullptr;
+
+    bindings_tree() : root( std::move( std::make_unique< bindings_node >() ) )
+                    , head( root.get() ) {}
 
     void add_scope()
     {
-        scopes.push_back( {} );
+        assert( head != nullptr );
+        head->bindings.push_back( {} );
     }
 
     void pop_scope()
     {
-        scopes.pop_back();
-    }
-    
-    void bind( identifier_t name, store_id id )
-    {
-        assert( !scopes.empty() );
-        scope& top = scopes.back();
-        top.insert_or_assign( name, id );
+        assert( head != nullptr );
+        assert( !head->bindings.empty() );
+        head->bindings.pop_back();
     }
 
-    std::optional< store_id > lookup( identifier_t name )
+    void pop_head()
     {
-        for ( const scope& c : scopes ) {
-            const auto &it = c.find( name );
-            if ( it != c.end() )
-                return it->second;
+        assert( head != nullptr );
+        assert( head->parent != nullptr );
+        auto parent = head->parent;
+        parent->children.pop();
+        if ( parent->children.empty() )
+            head = parent;
+        else 
+            head = parent.children.back().get();
+    }
+
+    void add_sibling()
+    {
+        assert( head != nullptr );
+        assert( head->parent != nullptr );
+        head->parent->children.push( bindings_node( head->parent ) );
+        head = &head->parent->children.back();
+    }
+
+    std::optional< store_id > lookup( const identifier_t& name )
+    {
+        auto current = head;
+
+        while ( current != nullptr ) { 
+            for ( int i = current->bindings.size() - 1; i >= 0; i-- ) {
+                const auto &it = current->bindings[ i ].find( name );
+                if ( it != current->bindings[ i ].end() )
+                    return it->second;
+            }
+            current = current->parent;
         }
         return {};
     }
 
-    friend std::ostream& operator<<( std::ostream& os, const scopestack& s )
+    either< identifier_t, std::map< identifier_t, store_id > > lookup( const std::set< identifier_t >& names )
     {
-        pprint::PrettyPrinter printer( os );
-        for( const auto& s : s.scopes )
+        std::map< identifier_t, store_id > bindings;
+
+        for ( const auto& name : names )
         {
-            printer.print( s );
+            const auto id = lookup( name );
+            if ( ! id.has_value() )
+                return { name };
+            bindings.insert( { name, id.value() } );
         }
-        return os;
+        return { bindings };
+    }
+
+    void bind( const identifier_t& name, store_id id )
+    {
+        assert( head != nullptr );
+        assert( ! head->bindings.empty() );
+        head->bindings.back().insert_or_assign( name, id );
+    }
+
+    friend std::ostream& operator<<( std::ostream& os, const bindings_tree& tree )
+    {
+        return os << *tree.root;
     }
 };

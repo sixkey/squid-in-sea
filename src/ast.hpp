@@ -92,6 +92,120 @@ struct function_def
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+// Free variables
+///////////////////////////////////////////////////////////////////////////////
+
+struct ast_free_vars
+{
+    using id_set_t = std::set< identifier_t >;
+
+    struct blacklist_t {
+        std::vector< std::set< identifier_t > > layers;
+
+        bool contains( const identifier_t& i )
+        {
+            for ( const auto& layer : layers )
+                if ( layer.find( i ) != layer.end() )
+                    return true;
+            return false;
+        }
+    };
+
+    template < typename node_t > 
+    static id_set_t free_variables( const node_t& n )
+    {
+        id_set_t vars      = {};
+        blacklist_t blacklist = {};
+        _free_variables( n, vars, blacklist );
+        return vars;
+    }
+
+    static void _free_variables( const ast::ast_node& node
+                               , id_set_t& vars
+                               , blacklist_t& blacklist ) {
+        std::visit( [&]( const auto& v ) { 
+                         _free_variables( v, vars, blacklist ); 
+                    }
+                  , node );
+    }
+
+    template < typename value_t >
+    static void _free_variables( const literal< value_t >& literal
+                                   , id_set_t& vars
+                                   , blacklist_t& blacklist ) {}
+
+    static void _free_variables( const variable& var
+                              , id_set_t& vars 
+                              , blacklist_t& blacklist )
+    {
+        if ( ! blacklist.contains( var.name ) )
+            vars.insert( var.name );
+    }
+
+    static void _free_variables( const function_call& call
+                               , id_set_t& vars 
+                               , blacklist_t& blacklist )
+    {
+        _free_variables( *call.fun, vars, blacklist );
+        for ( const auto& a : call.args )
+            _free_variables( *a, vars, blacklist );
+    }
+
+    static id_set_t variables_in( const pattern& pattern )
+    {
+        id_set_t variables;
+        _variables_in( pattern, variables );
+        return variables;
+    }
+
+    static void _variables_in( const pattern& pattern, id_set_t& variables )
+    {
+        std::visit( [&]( const auto& p ){ _variables_in( p, variables ); }, pattern ); 
+    }
+
+    template < typename value_t >  
+    static void _variables_in( const literal_pattern< value_t >& pattern
+                             , id_set_t& variables )
+    {}
+
+    static void _variables_in( const variable_pattern& pattern
+                             , id_set_t& variables )
+    {
+        variables.insert( pattern.name );
+    }
+
+    static void _variables_in( const object_pattern& object
+                             , id_set_t& variables )
+    {
+        for ( const auto& child : object.patterns )
+            _variables_in( child, variables );
+    }
+
+    static void _free_variables( const function_path& fun_path
+                               , id_set_t& vars 
+                               , blacklist_t& blacklist )
+    {
+        id_set_t bound_variables;
+        for ( const auto& i_pattern : fun_path.input_patterns )
+            _variables_in( i_pattern, bound_variables );
+        blacklist.layers.push_back( std::move( bound_variables ) );
+        _free_variables( *fun_path.expression, vars, blacklist );
+        blacklist.layers.pop_back();
+    }
+
+    static void _free_variables( const function_def& def
+                               , id_set_t& vars 
+                               , blacklist_t& blacklist )
+    {
+        for ( const auto& a : def.paths )
+            _free_variables( a, vars, blacklist );
+    }
+
+};
+
+
+
+///////////////////////////////////////////////////////////////////////////////
 // Print visitor
 ///////////////////////////////////////////////////////////////////////////////
 
