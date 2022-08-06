@@ -1,6 +1,6 @@
-set cpp /home/sixkey/git/llvm-project/build/bin/clang++
+# set cpp /home/sixkey/git/llvm-project/build/bin/clang++
 # set cpp /usr/bin/clang++-12
-# set cpp /usr/bin/g++-9
+set cpp /usr/bin/g++-10
 set wrapcc      /home/sixkey/apps/gib/_build/gib.wrapcc
 set echo        /bin/echo
 set findsrc     /home/sixkey/apps/gib/_build/gib.findsrc
@@ -50,5 +50,4 @@ out tests
 dep test_$(src_files:src/*.tpp:$1)
 cmd $(echo) tests
 
-
-add all main
+add all squid tests
