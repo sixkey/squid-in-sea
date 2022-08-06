@@ -697,12 +697,12 @@ struct parser
     {
         tpush( "let in" );
         p_state.req_pop( istype< kw_let >, "let" );
-        lexeme l_name = p_state.req_pop( istype< identifier > );
+        ast::pattern pat = p_pattern();
         p_state.req_pop( istype< sym_assign >, ":=" );
         ast::ast_node value = p_expression();
         p_state.req_pop( istype< kw_in >, "in" );
         ast::ast_node expression = p_expression();
-        return rpop( ast::let_in{ std::move( l_name.content )
+        return rpop( ast::let_in{ std::move( pat )
                                 , ast::clone( std::move( value ) )
                                 , ast::clone( std::move( expression ) ) } );
     }

@@ -95,10 +95,6 @@ struct fun_call
     fun_call( fun_obj_t fun, int arity )
             : fun( fun ), arity( arity ) {}
 
-    void call( eval_t& eval, const std::vector< object_t >& values )
-    {
-    }
-
     void visit( eval_t& eval )
     {
         /** Move values from value stack to a bundle for function
@@ -216,19 +212,23 @@ struct let_in_bind
     using ast_node_ptr = typename eval_t::ast_node_ptr;
     using object_t = typename eval_t::object_t;
 
-    identifier_t name;
+    pattern pat;
     ast_node_ptr expression;
 
     let_in_bind
-        ( identifier_t name
+        ( pattern pat
         , ast_node_ptr expression )
-        : name( std::move( name ) )
+        : pat( std::move( pat ) )
         , expression( std::move( expression ) ) {}
 
     void visit( eval_t& eval ) {
         object_t value = eval.state.pop_value();
         eval.state._store.scopes.add_scope();
-        eval.state._store.bind( name, value );
+
+        const auto& matching = match( pat, value );
+        if ( ! matching.has_value() )
+            throw std::runtime_error( "variable does not match pattern" );
+        eval.state._store.assign( matching.value() );
         eval.state.push_cell( scope_pop< eval_t >() );
         eval.push( expression );
     }
@@ -239,20 +239,20 @@ struct let_in_init
 {
     using ast_node_ptr = typename eval_t::ast_node_ptr;
 
-    identifier_t name;
+    pattern pat;
     ast_node_ptr value;
     ast_node_ptr expression;
 
     let_in_init
-        ( identifier_t name
+        ( pattern pat
         , ast_node_ptr value
         , ast_node_ptr expression )
-        : name( std::move( name ) )
+        : pat( std::move( pat ) )
         , value( std::move( value ) )
         , expression( std::move( expression ) ) {}
 
     void visit( eval_t& eval ) {
-        eval.state.push_cell( let_in_bind< eval_t >( std::move( name ), std::move( expression )) );
+        eval.state.push_cell( let_in_bind< eval_t >( std::move( pat ), std::move( expression )) );
         eval.push( value );
     }
 };
@@ -370,7 +370,7 @@ public:
 
     static eval_cell_t accept( const ast::let_in& l, eval_t& eval )
     {
-        return let_in_init< eval_t >( l.name, l.value, l.expression );
+        return let_in_init< eval_t >( tran_pattern( l.pat ), l.value, l.expression );
     }
 
 };

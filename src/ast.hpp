@@ -95,7 +95,7 @@ namespace ast {
 
     struct let_in
     {
-        identifier_t name;
+        pattern pat;
         node_ptr value;
         node_ptr expression;
     };
@@ -215,7 +215,8 @@ namespace ast {
                                    , blacklist_t& blacklist )
         {
             _free_variables( *letin.value, vars, blacklist );
-            blacklist.layers.push_back( { letin.name } );
+            id_set_t bound = variables_in( letin.pat );
+            blacklist.layers.push_back( std::move( bound ) );
             _free_variables( *letin.expression, vars, blacklist );
             blacklist.layers.pop_back();
         }
@@ -320,8 +321,9 @@ namespace ast {
 
         void accept( const let_in& l )
         {
-            printer.print( "LetIn", l.name );
+            printer.print( "LetIn" );
             indent();
+            accept( l.pat );
             accept( *l.value );
             accept( *l.expression );
             dedent();
