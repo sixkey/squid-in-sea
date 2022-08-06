@@ -1,18 +1,18 @@
+#pragma once
+
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include "kocky.hpp" 
-#include "pprint.hpp"
-#pragma once
 #include <variant> 
 #include <memory>
 #include <iostream>
 
-#include "ast.hpp"
-#include "pattern.hpp"
-
+#include "kocky.hpp" 
 #include "k-either.hpp"
+
+#include "pprint.hpp"
+#include "pattern.hpp"
 
 using namespace std::literals::string_literals; 
 
