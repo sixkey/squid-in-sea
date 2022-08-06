@@ -15,12 +15,14 @@ namespace ast {
     struct variable;
     struct function_call;
     struct function_def;
+    struct let_in;
 
     using ast_node = std::variant< variable
                                  , function_call
                                  , function_def
                                  , literal< int >
-                                 , literal< bool > >;
+                                 , literal< bool >
+                                 , let_in >;
 
     using node_ptr = std::shared_ptr< ast_node >;
 
@@ -39,17 +41,17 @@ namespace ast {
     template< typename value_t >
     struct literal
     {
-        value_t value; 
+        value_t value;
         literal( value_t value ) : value( value ) {};
     };
 
-    struct variable 
+    struct variable
     {
         identifier_t name;
         variable ( identifier_t name ) : name( name ) {};
     };
 
-    struct function_call 
+    struct function_call
     {
         node_ptr fun;
         std::vector< node_ptr > args;
@@ -57,7 +59,7 @@ namespace ast {
             ( node_ptr fun
             , std::vector< node_ptr > arguments )
             : fun( fun )
-            , args( arguments ) 
+            , args( arguments )
         {}
     };
 
@@ -91,6 +93,13 @@ namespace ast {
         int arity;
     };
 
+    struct let_in
+    {
+        identifier_t name;
+        node_ptr value;
+        node_ptr expression;
+    };
+
     ///////////////////////////////////////////////////////////////////////////
     // Free variables
     ///////////////////////////////////////////////////////////////////////////
@@ -111,7 +120,7 @@ namespace ast {
             }
         };
 
-        template < typename node_t > 
+        template < typename node_t >
         static id_set_t free_variables( const node_t& n )
         {
             id_set_t vars      = {};
@@ -123,8 +132,8 @@ namespace ast {
         static void _free_variables( const ast::ast_node& node
                                    , id_set_t& vars
                                    , blacklist_t& blacklist ) {
-            std::visit( [&]( const auto& v ) { 
-                             _free_variables( v, vars, blacklist ); 
+            std::visit( [&]( const auto& v ) {
+                             _free_variables( v, vars, blacklist );
                         }
                       , node );
         }
@@ -135,7 +144,7 @@ namespace ast {
                                        , blacklist_t& blacklist ) {}
 
         static void _free_variables( const variable& var
-                                  , id_set_t& vars 
+                                  , id_set_t& vars
                                   , blacklist_t& blacklist )
         {
             if ( ! blacklist.contains( var.name ) )
@@ -143,7 +152,7 @@ namespace ast {
         }
 
         static void _free_variables( const function_call& call
-                                   , id_set_t& vars 
+                                   , id_set_t& vars
                                    , blacklist_t& blacklist )
         {
             _free_variables( *call.fun, vars, blacklist );
@@ -160,10 +169,10 @@ namespace ast {
 
         static void _variables_in( const pattern& pattern, id_set_t& variables )
         {
-            std::visit( [&]( const auto& p ){ _variables_in( p, variables ); }, pattern ); 
+            std::visit( [&]( const auto& p ){ _variables_in( p, variables ); }, pattern );
         }
 
-        template < typename value_t >  
+        template < typename value_t >
         static void _variables_in( const literal_pattern< value_t >& pattern
                                  , id_set_t& variables )
         {}
@@ -182,7 +191,7 @@ namespace ast {
         }
 
         static void _free_variables( const function_path& fun_path
-                                   , id_set_t& vars 
+                                   , id_set_t& vars
                                    , blacklist_t& blacklist )
         {
             id_set_t bound_variables;
@@ -194,12 +203,23 @@ namespace ast {
         }
 
         static void _free_variables( const function_def& def
-                                   , id_set_t& vars 
+                                   , id_set_t& vars
                                    , blacklist_t& blacklist )
         {
             for ( const auto& a : def.paths )
                 _free_variables( a, vars, blacklist );
         }
+
+        static void _free_variables( const let_in& letin
+                                   , id_set_t& vars
+                                   , blacklist_t& blacklist )
+        {
+            _free_variables( *letin.value, vars, blacklist );
+            blacklist.layers.push_back( { letin.name } );
+            _free_variables( *letin.expression, vars, blacklist );
+            blacklist.layers.pop_back();
+        }
+
 
     };
 
@@ -209,7 +229,7 @@ namespace ast {
     // Print visitor
     ///////////////////////////////////////////////////////////////////////////////
 
-    struct ast_printer 
+    struct ast_printer
     {
         pprint::PrettyPrinter printer;
 
@@ -225,14 +245,14 @@ namespace ast {
         {
             std::visit( ON_THIS( accept ), n );
         }
-        
+
         template< typename value_t >
         void accept( const literal< value_t >& l )
         {
             printer.print( "Literal", l.value );
         }
 
-        void accept( const variable& v ) 
+        void accept( const variable& v )
         {
             printer.print( "Variable", v.name );
         }
@@ -241,7 +261,7 @@ namespace ast {
         {
             printer.print( "FunctionCall" );
             indent();
-            
+
             auto accept_on_this = ON_THIS( accept );
 
             accept( *f.fun );
@@ -250,7 +270,7 @@ namespace ast {
             dedent();
         }
 
-        template< typename value_t > 
+        template< typename value_t >
         void accept( const literal_pattern< value_t >& l )
         {
             printer.print( "LiteralPattern", l.value );
@@ -295,6 +315,15 @@ namespace ast {
             indent();
             for ( const auto& p : d.paths )
                 accept( p );
+            dedent();
+        }
+
+        void accept( const let_in& l )
+        {
+            printer.print( "LetIn", l.name );
+            indent();
+            accept( *l.value );
+            accept( *l.expression );
             dedent();
         }
     };

@@ -9,7 +9,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <functional> 
+#include <functional>
 #include <cctype>
 
 #include "ast.hpp"
@@ -54,13 +54,13 @@ struct istream_generator
     }
 };
 
-struct string_generator 
+struct string_generator
 {
     using value_t = int;
 
     std::string content;
     int counter = 0;
-    
+
     string_generator( std::string content ) : content( content ) {};
 
     int next()
@@ -68,7 +68,7 @@ struct string_generator
         assert( !empty() );
         return int( content[ counter++ ] );
     }
-    
+
     int empty()
     {
         return counter >= content.size();
@@ -85,23 +85,23 @@ struct parsing_state
     using show_value_t = std::function< std::string( const value_t& ) >;
 
     bool loaded = 0;
-    generator_t generator; 
+    generator_t generator;
 
     value_t current;
 
     metadata_t meta;
-    value_t def; 
+    value_t def;
     show_value_t show_value;
 
     parsing_state( generator_t content
-                 , metadata_t meta 
+                 , metadata_t meta
                  , value_t def
-                 , show_value_t show_value ) 
+                 , show_value_t show_value )
                  : generator( std::move( content ) )
-                 , def( def ) 
-                 , meta( std::move( meta ) ) 
+                 , def( def )
+                 , meta( std::move( meta ) )
                  , show_value( show_value ) {}
-                    
+
     void inc()
     {
         meta.on_inc( std::move( current ) );
@@ -147,24 +147,24 @@ struct parsing_state
     {
         value_t v = req_peek();
         if ( v != value )
-            throw parsing_error( "expected '" + show_value( value ) 
-                                 + "' but got '" 
+            throw parsing_error( "expected '" + show_value( value )
+                                 + "' but got '"
                                  + show_value( v ) + "'" );
         return v;
     }
 
-    value_t req_peek( fn_pred_t pred, std::string name = "in predicate" ) 
+    value_t req_peek( fn_pred_t pred, std::string name = "in predicate" )
     {
         value_t v = req_peek();
-        if ( ! pred( v ) ) 
+        if ( ! pred( v ) )
             throw parsing_error( "value '" + show_value( v ) + "' is not " + name );
         return v;
     }
 
-    value_t req_peek( pred_t pred, std::string name = "in predicate" ) 
+    value_t req_peek( pred_t pred, std::string name = "in predicate" )
     {
         value_t v = req_peek();
-        if ( ! pred( v ) ) 
+        if ( ! pred( v ) )
             throw parsing_error( "value '" + show_value( v ) + "' is not " + name );
         return v;
     }
@@ -252,12 +252,12 @@ struct parsing_state
 enum lex_type
 {
     identifier,
-    op, 
+    op,
 
     literal_number,
     literal_bool,
 
-    sym_semicolon, 
+    sym_semicolon,
     sym_assign,
     sym_fun_path,
     sym_prod,
@@ -272,11 +272,12 @@ enum lex_type
 
     kw_fun,
     kw_let,
-    kw_if, 
+    kw_in,
+    kw_if,
     kw_then,
     kw_else,
 
-    sp_newline, 
+    sp_newline,
     sp_eof
 };
 
@@ -285,7 +286,8 @@ const std::map< std::string, lex_type > keywords = {
     { "else",   kw_else },
     { "then",   kw_then },
     { "fun",    kw_fun },
-    { "let",    kw_let }, 
+    { "let",    kw_let },
+    { "in",    kw_in },
     { "true",   literal_bool },
     { "false",  literal_bool },
     { "->",     sym_rarrow },
@@ -329,7 +331,7 @@ struct lexeme {
     }
 };
 
-static int isspecial( int c ) { 
+static int isspecial( int c ) {
     switch( c )
     {
         case '+':
@@ -356,7 +358,7 @@ static int isopchar( int c )  { return isspecial( c ); }
 
 static std::string show_char( int c ) { return c == EOF ? "eof" : std::string{ char( c ) }; }
 
-static std::string show_lexem( const lexeme& l ) 
+static std::string show_lexem( const lexeme& l )
 {
     std::stringstream ss;
     ss << l;
@@ -367,7 +369,7 @@ struct row_col {
 
     int newline = '\n';
 
-    int row = 0; 
+    int row = 0;
     int col = 0;
 
     row_col( int newline ) : newline( newline ) {};
@@ -377,13 +379,13 @@ struct row_col {
         col++;
         if ( last == newline ) {
             row++;
-            col = 0;         
+            col = 0;
         }
     }
 };
 
 template < typename generator_t >
-struct lexer 
+struct lexer
 {
     parsing_state< generator_t, row_col > p_state;
     using value_t = lexeme;
@@ -392,8 +394,8 @@ struct lexer
     int lex_row = 0;
     int lex_col = 0;
 
-    lexer( generator_t g , int newline = '\n' ) 
-         : p_state( std::move ( g ) 
+    lexer( generator_t g , int newline = '\n' )
+         : p_state( std::move ( g )
                   , row_col( newline )
                   , EOF
                   , show_char ) {}
@@ -421,7 +423,7 @@ struct lexer
 
     lexeme get_identifier()
     {
-        buffer.push_back( p_state.req_pop( isidstart ) ); 
+        buffer.push_back( p_state.req_pop( isidstart ) );
         while ( std::optional< int > c = p_state.match( isidchar ) )
             buffer.push_back( c.value() );
         return flush_identifier( identifier );
@@ -429,7 +431,7 @@ struct lexer
 
     lexeme get_operator()
     {
-        buffer.push_back( p_state.req_pop( isopchar ) ); 
+        buffer.push_back( p_state.req_pop( isopchar ) );
         while ( std::optional< int > c = p_state.match( isopchar ) )
             buffer.push_back( c.value() );
         return flush_identifier( op );
@@ -457,7 +459,7 @@ struct lexer
         lex_row = p_state.meta.row;
         lex_col = p_state.meta.col;
 
-        if ( std::isdigit( c ) ) return get_lit_number();                     
+        if ( std::isdigit( c ) ) return get_lit_number();
         if ( isidstart( c ) )    return get_identifier();
         if ( isopchar( c ) )     return get_operator();
 
@@ -466,9 +468,9 @@ struct lexer
             return get_singleton( c, sp_it->second );
 
         throw parsing_error( "unknown symbol: '"s
-                           + ( c == EOF 
-                                ? "EOF" 
-                                : std::string{ char( c ) } ) 
+                           + ( c == EOF
+                                ? "EOF"
+                                : std::string{ char( c ) } )
                            + "' ("s + std::to_string( c ) + ")" );
     }
 
@@ -483,14 +485,14 @@ struct lexer
 ///////////////////////////////////////////////////////////////////////////////
 
 template < lex_type t >
-static int istype( const lexeme& l ) { return l.type == t; };  
-static int isliteral( const lexeme& l ) { return l.type == literal_bool 
+static int istype( const lexeme& l ) { return l.type == t; };
+static int isliteral( const lexeme& l ) { return l.type == literal_bool
                                               || l.type == literal_number; };
 static int pat_start( const lexeme& l ) { return l.type == op && l.content == "<"; };
 static int pat_end( const lexeme& l ) { return l.type == op && l.content == ">"; };
 
 template < lex_type... ls >
-constexpr int isany( const lexeme& l ) { 
+constexpr int isany( const lexeme& l ) {
     return ( ( l.type == ls ) || ... );
 };
 
@@ -508,8 +510,8 @@ struct meta_trace
     };
 };
 
-template < typename generator_t > 
-struct parser 
+template < typename generator_t >
+struct parser
 {
     using p_state_t = parsing_state< lexer< generator_t >, meta_unit< lexeme > >;
 
@@ -517,15 +519,15 @@ struct parser
     std::map< std::string, std::pair< int, bool > > op_table;
     int op_prio_depth = 0;
 
-    p_state_t p_state; 
+    p_state_t p_state;
 
     std::stack< std::string > stack_trace;
 
     parser( generator_t generator, int op_prio_depth )
-        : p_state( lexer( std::move( generator ) ) 
+        : p_state( lexer( std::move( generator ) )
                  , meta_unit< lexeme >{}
                  , { sp_eof, "", -1, -1 }
-                 , show_lexem ) 
+                 , show_lexem )
         , op_prio_depth( op_prio_depth ) {}
 
 
@@ -539,10 +541,10 @@ struct parser
         stack_trace.pop();
     }
 
-    template < typename T > 
-    T rpop( T t ) { 
+    template < typename T >
+    T rpop( T t ) {
         tpop();
-        return t; 
+        return t;
     }
 
     std::string p_identifier()
@@ -559,8 +561,8 @@ struct parser
 
     int p_number() {
         tpush( "number" );
-        lexeme l = p_state.req_pop( istype< literal_number > ); 
-        int content = 0; 
+        lexeme l = p_state.req_pop( istype< literal_number > );
+        int content = 0;
         for ( char c : l.content ) {
             content *= 10;
             content += c - '0';
@@ -594,7 +596,7 @@ struct parser
         tpush( "literal" );
         return rpop( std::move ( p_literal_template< ast::literal, ast::ast_node >() ) );
     }
-    
+
 
     static bool p_atom_start_lex( const lexeme& l ) {
         return isliteral( l ) || isany< lpara, identifier, kw_fun >( l );
@@ -625,15 +627,15 @@ struct parser
     {
         tpush( "call" );
         tpush( "call - fun" );
-        ast::ast_node fun = p_atom(); 
+        ast::ast_node fun = p_atom();
         tpop();
         std::vector< ast::node_ptr > args;
         tpush( "call - arguments" );
         while ( p_state.holds( p_atom_start_lex ) )
             args.push_back( clone( p_atom() ) );
         tpop();
-        return rpop( args.empty() 
-                        ? fun 
+        return rpop( args.empty()
+                        ? fun
                         : ast::function_call( ast::clone( fun ), args ) );
     }
 
@@ -659,10 +661,10 @@ struct parser
             if ( ops == op_table.end() )
                 throw parsing_error( "operator '"s + op + "' is unknown"s );
 
-            // Here, invariant of p_expression => operator will be processed 
+            // Here, invariant of p_expression => operator will be processed
             // by a parent.
             const auto& [ op_prio, op_asoc ] = ops->second;
-            if ( op_prio != layer || op_asoc != asoc ) 
+            if ( op_prio != layer || op_asoc != asoc )
                 break;
 
             p_state.pop();
@@ -670,30 +672,50 @@ struct parser
             nodes.push_back( p_expression( next_layer, next_asoc ) );
         }
 
-        // left(-to-right) asociativity 
+        // left(-to-right) asociativity
         if ( ! asoc ) {
             ast::ast_node acc = std::move( nodes[ 0 ] );
             for ( int i = 0; i < operators.size(); i++ )
-                acc = ast::function_call( 
-                    ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
+                acc = ast::function_call(
+                    ast::clone( ast::variable( std::move( operators[ i ] ) ) ),
                     { ast::clone( std::move( acc ) )
                     , ast::clone( std::move( nodes[ i + 1 ] ) ) } );
             return rpop( std::move( acc ) );
-        } 
+        }
 
-        // right(-to-left ) asociativity 
+        // right(-to-left ) asociativity
         ast::ast_node acc = std::move( nodes[ operators.size() ] );
-        for ( int i = operators.size() - 1; i >= 0; i-- ) 
-            acc = ast::function_call( 
-                ast::clone( ast::variable( std::move( operators[ i ] ) ) ), 
+        for ( int i = operators.size() - 1; i >= 0; i-- )
+            acc = ast::function_call(
+                ast::clone( ast::variable( std::move( operators[ i ] ) ) ),
                 { ast::clone( std::move( nodes[ i ] ) )
                 , ast::clone( std::move( acc ) ) } );
         return rpop( std::move( acc ) );
     }
 
+    ast::ast_node p_letin()
+    {
+        tpush( "let in" );
+        p_state.req_pop( istype< kw_let >, "let" );
+        lexeme l_name = p_state.req_pop( istype< identifier > );
+        p_state.req_pop( istype< sym_assign >, ":=" );
+        ast::ast_node value = p_expression();
+        p_state.req_pop( istype< kw_in >, "in" );
+        ast::ast_node expression = p_expression();
+        return rpop( ast::let_in{ std::move( l_name.content )
+                                , ast::clone( std::move( value ) )
+                                , ast::clone( std::move( expression ) ) } );
+    }
+
     ast::ast_node p_expression()
     {
         tpush( "expression" );
+
+        if ( p_state.holds( istype< kw_let > ) )
+        {
+            return rpop( p_letin() );
+        }
+
         return rpop( p_expression( 0, false ) );
     }
 
@@ -720,7 +742,7 @@ struct parser
         return rpop( ast::object_pattern{ identifier, std::move( children ) } );
     }
 
-    static int p_pattern_fch( const lexeme& l ) 
+    static int p_pattern_fch( const lexeme& l )
     {
         return istype< identifier >( l ) || pat_start( l ) || isliteral( l );
     }
@@ -730,17 +752,17 @@ struct parser
         tpush( "pattern" );
         lexeme l = p_state.req_peek( p_pattern_fch, "identifier, '<' or literal" );
 
-        if ( istype< identifier >( l ) ) 
+        if ( istype< identifier >( l ) )
             return rpop( p_variable_pattern() );
-        if ( pat_start( l ) ) 
+        if ( pat_start( l ) )
             return rpop( p_object_pattern() );
         if ( isliteral( l ) )
             return rpop( p_literal_pattern() );
-        
+
         assert( false );
     }
 
-    ast::function_path p_funpath_mapping() { 
+    ast::function_path p_funpath_mapping() {
         tpush( "function path mapping" );
         std::vector< ast::pattern > patterns{ p_pattern() };
 
@@ -752,7 +774,7 @@ struct parser
         tpush( "function path mapping - expression" );
         ast::ast_node expr = p_expression();
         tpop();
-        
+
         return rpop( ast::function_path{ std::move( patterns )
                                        , ast::variable_pattern{ "_" }
                                        , ast::clone( expr ) } );
@@ -779,11 +801,11 @@ struct parser
             arity = fpath.input_patterns.size();
             paths.push_back( std::move( fpath ) );
         }
-        
+
         while ( p_state.holds( istype< sym_fun_path > ) ) {
             ast::function_path p = p_funpath();
 
-            if ( ! paths.empty() && p.input_patterns.size() != arity ) 
+            if ( ! paths.empty() && p.input_patterns.size() != arity )
                 throw parsing_error( "the number of arguments does not match" );
             arity = p.input_patterns.size();
 
