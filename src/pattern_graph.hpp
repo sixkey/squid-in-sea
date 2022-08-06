@@ -149,5 +149,3 @@ class pattern_graph {
     }
 
 };
-
-void tests_pattern_graph();

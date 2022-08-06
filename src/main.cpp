@@ -9,25 +9,10 @@
 #include <ios>
 #include <stdexcept>
 #include "parser.hpp"
-#include "t-run.hpp"
 #include "builtins.hpp"
-
-void tests()
-{
-    tests_pattern();
-    tests_pattern_graph();
-    tests_values();
-    tests_parser();
-    tests_eval();
-    tests_run();
-}
 
 int main( int argc, char** argv ) 
 {
-    if ( argc == 0 ) {
-        tests();
-        return 0;
-    }
     std::ifstream file( argv[ 1 ] );
     parser< istream_generator< std::ifstream > > p( { std::move( file ) }, 10 );
 

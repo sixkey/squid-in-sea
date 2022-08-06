@@ -4,7 +4,7 @@
 #include <iostream>
 #include "pprint.hpp"
 
-void tests_pattern_graph()
+void test_pattern_graph()
 {
     pprint::PrettyPrinter printer;
 
@@ -55,3 +55,7 @@ void tests_pattern_graph()
     //    printer.print( a.first->to_string(), a.second );
 }
 
+int main()
+{
+    test_pattern_graph();
+}

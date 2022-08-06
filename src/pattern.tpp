@@ -28,7 +28,7 @@ void test_contains()
     assert( ! contains( int_a, bool_a ) );
 }
 
-void tests_pattern()
+int main()
 {
     test_contains();
 }

@@ -152,7 +152,13 @@ struct test_types_
     }
 };
 
-void tests_values()
+void test_patterns()
 {
     test_pattern< test_types_ >();
 }
+
+int main()
+{
+    test_patterns();
+}
+

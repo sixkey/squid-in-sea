@@ -217,17 +217,9 @@ struct ast_printer
 
     ast_printer( pprint::PrettyPrinter printer ) : printer( printer ) {};
 
-    void indent()
-    {
-        printer.indent_offset( offset += 2 );
-    }
+    void indent() {}
 
-    void dedent()
-    {
-        if ( offset > 2 )
-            offset -= 2;
-        printer.indent_offset( offset );
-    }
+    void dedent() {}
 
     void accept( const ast::ast_node& n )
     {

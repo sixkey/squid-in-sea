@@ -79,7 +79,7 @@ void sandbox()
     assert( p.p_state.empty() );
 }
 
-void tests_parser()
+int main()
 {
     test_lex_basic();
     test_lex_small();

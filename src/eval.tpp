@@ -4,7 +4,7 @@
 #include "pprint.hpp"
 #include "values.hpp"
 
-void tests_eval()
+int main()
 {
     eval e;
 

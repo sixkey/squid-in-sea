@@ -31,7 +31,7 @@ void test_run()
     assert( e.state._values.top() == object_t( false ) );
 }
 
-void tests_run()
+int main()
 {
     test_run();
 }

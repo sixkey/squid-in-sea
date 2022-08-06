@@ -571,5 +571,3 @@ struct eval
     }
 
 };
-
-void tests_eval();

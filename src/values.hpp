@@ -272,5 +272,3 @@ either< std::string, std::pair< matching_t< value_t >, evaluable_t > > match
 
     return message;
 }
-
-void tests_values();

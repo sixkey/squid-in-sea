@@ -803,5 +803,3 @@ struct parser
 
 using lexer_str = lexer< string_generator >;
 using parser_str = parser< string_generator >;
-
-void tests_parser();

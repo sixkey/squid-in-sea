@@ -3,5 +3,6 @@
 !gibfile
 !src
 !src/*.cpp
+!src/*.tpp
 !src/*.hpp
 
