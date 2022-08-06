@@ -22,6 +22,8 @@ namespace ast {
                                  , literal< int >
                                  , literal< bool > >;
 
+    using node_ptr = std::shared_ptr< ast_node >;
+
     template< typename value_t >
     struct literal_pattern;
     struct variable_pattern;
@@ -31,8 +33,6 @@ namespace ast {
                                 , ast::literal_pattern< bool >
                                 , ast::variable_pattern
                                 , ast::object_pattern >;
-
-    using node_ptr = std::shared_ptr< ast_node >;
 
     struct ast_printer;
 
@@ -91,9 +91,9 @@ namespace ast {
         int arity;
     };
 
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
     // Free variables
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
     struct ast_free_vars
     {
@@ -299,7 +299,5 @@ namespace ast {
         }
     };
 
-
     node_ptr clone( const ast_node& a );
-
 }
