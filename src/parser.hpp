@@ -488,8 +488,6 @@ static int isliteral( const lexeme& l ) { return l.type == literal_bool
                                               || l.type == literal_number; };
 static int pat_start( const lexeme& l ) { return l.type == op && l.content == "<"; };
 static int pat_end( const lexeme& l ) { return l.type == op && l.content == ">"; };
-                        
-
 
 template < lex_type... ls >
 constexpr int isany( const lexeme& l ) { 
@@ -515,13 +513,13 @@ struct parser
 {
     using p_state_t = parsing_state< lexer< generator_t >, meta_unit< lexeme > >;
 
-    // [ priority_layer : ( l_asoc : { op }, r_asoc : { op } ) ]
-    // { name : ( prio, asoc ) } 
+    /** { name : ( prio, asoc ) } **/
     std::map< std::string, std::pair< int, bool > > op_table;
-
     int op_prio_depth = 0;
 
     p_state_t p_state; 
+
+    std::stack< std::string > stack_trace;
 
     parser( generator_t generator, int op_prio_depth )
         : p_state( lexer( std::move( generator ) ) 
@@ -530,7 +528,6 @@ struct parser
                  , show_lexem ) 
         , op_prio_depth( op_prio_depth ) {}
 
-    std::stack< std::string > stack_trace;
 
     void tpush( std::string s )
     {
@@ -539,7 +536,7 @@ struct parser
 
     void tpop()
     {
-        // stack_trace.pop();
+        stack_trace.pop();
     }
 
     template < typename T > 
@@ -682,9 +679,9 @@ struct parser
                     { ast::clone( std::move( acc ) )
                     , ast::clone( std::move( nodes[ i + 1 ] ) ) } );
             return rpop( std::move( acc ) );
-        // right(-to-left ) asociativity 
         } 
 
+        // right(-to-left ) asociativity 
         ast::ast_node acc = std::move( nodes[ operators.size() ] );
         for ( int i = operators.size() - 1; i >= 0; i-- ) 
             acc = ast::function_call( 
