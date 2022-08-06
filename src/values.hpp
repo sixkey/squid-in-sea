@@ -38,7 +38,7 @@ struct function_path
     {
         os << "Path";
         for ( const auto& p : fun_path.input_patterns )
-            os << " " << p; 
+            os << " ( " << p << " )"; 
         os << " => " << fun_path.output_pattern;
         return os;
     }
@@ -136,7 +136,8 @@ struct object {
     std::string value_to_string( const value_t &value ) const {
         std::stringstream ss;
         pprint::PrettyPrinter printer( ss );
-        printer.print_inline( value );
+        printer.line_terminator( "" );
+        printer.print( value );
         return ss.str();
     }
 

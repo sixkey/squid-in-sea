@@ -293,8 +293,6 @@ public:
 
         closure_t closure = { p.expression, bindings.right() };
 
-        TRACE( bindings.right() );
-
         return function_path< evaluable_t >( 
                 input_patterns, 
                 output_pattern, 
@@ -525,12 +523,13 @@ struct eval
         pprint::PrettyPrinter printer;
         while( !state._cells.empty() )
         {
-            printer.print( "STEP" );
-            printer.print( "Cells" );
-            printer.print( state._cells );
-            printer.print( "Values" );
-            printer.print( state._values );
-            std::cout << state._store;
+            // std::cin.get();
+            // printer.print( "STEP" );
+            // printer.print( "Cells" );
+            // printer.print( state._cells );
+            // printer.print( "Values" );
+            // printer.print( state._values );
+            // std::cout << state._store;
             run_top();
         }
     }

@@ -30,10 +30,6 @@ int main( int argc, char** argv )
     try {
         auto printer = ast::ast_printer( pprint::PrettyPrinter( std::cout ) );
         auto expr = p.p_expression();
-        
-        TRACE( ast::ast_free_vars::free_variables( expr ) );
-
-        // printer.accept( expr );
         e.push( std::move( expr ) );
         e.run();
         TRACE( e.state._values ); 
