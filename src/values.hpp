@@ -33,6 +33,15 @@ struct function_path
         , output_pattern( output_pattern )
         , evaluable( evaluable ) 
     {}
+
+    friend std::ostream& operator <<( std::ostream& os, const function_path& fun_path )
+    {
+        os << "Path";
+        for ( const auto& p : fun_path.input_patterns )
+            os << " " << p; 
+        os << " => " << fun_path.output_pattern;
+        return os;
+    }
 };
 
 template< typename evaluable_t_ >
@@ -52,10 +61,11 @@ struct function_object
 
     friend std::ostream& operator <<( std::ostream& os, const function_object& f )
     {
-        return os << "<fun> " << f.arity_;
+        os << "Function " << f.arity();
+        for ( const auto& fun_path : f.paths )
+            os << " ( " << fun_path << " )";
+        return os;
     }
-
-    std::string to_string() const { return "<fun>"; };
 
     int arity() const { return arity_; };
 };
@@ -173,18 +183,18 @@ template< typename value_t >
 bool match( const object_pattern& p, const object< value_t >& o, matching_t< value_t >& m ) 
 {
     if ( o.name != p.name ) {
-        return P_DBG_RET( false, "names do not match" );
+        return false;
     }
 
     if ( o.omega() ) {
         if ( p.patterns.size() != 1 ) {
-            return P_DBG_RET( false, "size does not match" );
+            return false;
         }
         return match( p.patterns[ 0 ], o, m );
     } 
     
     if ( o.get_attrs().size() != p.patterns.size() ) {
-        return P_DBG_RET( false, "size does not match" );
+        return false;
     }
 
     /**
@@ -217,13 +227,13 @@ template < typename value_t, typename T >
 bool match( const literal_pattern< T >& p, const object< value_t >& o, matching_t< value_t >& match )
 {
     if ( !o.omega() ) {
-        return P_DBG_RET( false, "is not an omega object" );
+        return false;
     }
     if ( o.name != p.name ) {
-        return P_DBG_RET( false, "names do not match" );
+        return false;
     }
     if ( o.template has_value< T >() && o.template get_value< T >() != p.value ) {
-        return P_DBG_RET( false, "values do not match" );
+        return false;
     }
     return true;
 }
