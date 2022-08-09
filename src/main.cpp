@@ -24,13 +24,13 @@ int main( int argc, char** argv )
     eval e;
 
     e.state._store.scopes.add_scope();
-    //builtins< eval >::add_builtins( e );
+    builtins< eval >::add_builtins( e );
     e.state._store.scopes.add_scope();
 
     try {
         auto printer = ast::ast_printer( pprint::PrettyPrinter( std::cout ) );
         auto expr = p.p_expression();
-        printer.accept( expr );
+        // printer.accept( expr );
         e.push( std::move( expr ) );
         e.run();
         TRACE( e.state._values );

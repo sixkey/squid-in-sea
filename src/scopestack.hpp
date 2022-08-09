@@ -110,4 +110,12 @@ struct bindings_tree
     {
         return os << *tree.root;
     }
+
+
+    const bindings_t& top()
+    {
+        assert( head != nullptr );
+        assert( ! head->bindings.empty() ); 
+        return head->bindings.back();
+    }
 };

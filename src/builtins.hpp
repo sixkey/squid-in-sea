@@ -1,3 +1,4 @@
+#include "kocky.hpp"
 #include "values.hpp"
 
 template < typename eval_t >
@@ -8,7 +9,7 @@ struct builtins
     using builtin_wrapper = std::function< object_t( builtin_t ) >;
     using evaluable_t = typename eval_t::types::evaluable_t;
 
-    static object_t int_binary_o( evaluable_t e ) {
+    static object_t wrapper_int_binary( evaluable_t e ) {
         using object_t = typename eval_t::object_t;
         function_path< evaluable_t > path( 
                 { object_pattern( "Int", { variable_pattern( "a" ) } )
@@ -32,6 +33,21 @@ struct builtins
     static void div( eval_t& e ) { int_binary( e, []( int a, int b ){ return a / b; } ); }
     static void mod( eval_t& e ) { int_binary( e, []( int a, int b ){ return a % b; } ); }
 
+    static object_t wrapper_any_unary( evaluable_t e ) {
+        using object_t = typename eval_t::object_t;
+        function_path< evaluable_t > path( 
+                { variable_pattern( "a" ) },
+                variable_pattern( "_" )
+                , e );
+        return object_t( function_object< evaluable_t >( { std::move( path ) }, 1 ) );
+    };
+
+    static void trace( eval_t& e ) { 
+        object_t a = e.state._store.lookup( "a" );
+        TRACE( "[trace]", a ); 
+        e.state.push_value( a );
+    }
+
     static object_t bool_binary_o( evaluable_t e ) {
         using object_t = typename eval_t::object_t;
         function_path< evaluable_t > path( 
@@ -54,20 +70,21 @@ struct builtins
     static void b_or( eval_t& e ) { bool_binary( e, []( int a, int b ){ return a || b; } ); }
 
     static const inline std::map< std::string, std::pair< builtin_t, builtin_wrapper > > bindings {
-        { "__int_add__", { add, int_binary_o } },
-        { "__int_sub__", { sub, int_binary_o } },
-        { "__int_mul__", { mul, int_binary_o } },
-        { "__int_div__", { div, int_binary_o } },
-        { "__int_mod__", { mod, int_binary_o } },
-        { "__bool_and__", { mod, int_binary_o } },
-        { "__bool_or__", { mod, int_binary_o } },
-        { "+", { add, int_binary_o } },
-        { "-", { sub, int_binary_o } },
-        { "*", { mul, int_binary_o } },
-        { "/", { div, int_binary_o } },
-        { "%", { mod, int_binary_o } },
-        { "&&", { b_and, bool_binary_o } },
-        { "||", { b_or, bool_binary_o } },
+        { "__int_add__",  { add,        wrapper_int_binary } },
+        { "__int_sub__",  { sub,        wrapper_int_binary } },
+        { "__int_mul__",  { mul,        wrapper_int_binary } },
+        { "__int_div__",  { div,        wrapper_int_binary } },
+        { "__int_mod__",  { mod,        wrapper_int_binary } },
+        { "__bool_and__", { mod,        wrapper_int_binary } },
+        { "__bool_or__",  { mod,        wrapper_int_binary } },
+        { "__trace__",    { trace,      wrapper_any_unary  } },
+        { "+",            { add,        wrapper_int_binary } },
+        { "-",            { sub,        wrapper_int_binary } },
+        { "*",            { mul,        wrapper_int_binary } },
+        { "/",            { div,        wrapper_int_binary } },
+        { "%",            { mod,        wrapper_int_binary } },
+        { "&&",           { b_and,      bool_binary_o } },
+        { "||",           { b_or,       bool_binary_o } },
     };
 
     static void add_builtins( eval_t& e )

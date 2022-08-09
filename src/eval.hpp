@@ -110,7 +110,7 @@ struct fun_call
 
         eval.state.push_cell( fun_cleanup< eval_t >( std::move( fun ) ) );
         eval.state._store.scopes.add_scope();
-        eval.state._store.assign( matching );
+        eval.state._store.bind( matching );
         eval.evaluate( evaluable );
     }
 
@@ -417,6 +417,12 @@ struct store
         _store.push_back( std::move( value ) );
     }
 
+    template < typename assigned_t >
+    void bind( const std::map< identifier_t, assigned_t >& assignment ) {
+        for ( const auto &[ key, val ] : assignment )
+            bind( key, val );
+    }
+
     void assign( identifier_t name, object_t value )
     {
         std::optional< store_id > id = scopes.lookup( name );
@@ -455,6 +461,24 @@ struct store
         printer.print( "Store" );
         printer.print( s._store );
         return os;
+    }
+
+    std::map< identifier_t, object_t > dereference( 
+        const std::map< identifier_t, store_id >& bindings )
+    {
+        std::map< identifier_t, object_t > result;
+        for ( const auto &[ key, value ] : bindings )
+            result.insert( { key, _store[ value ] } );
+        return result;
+    }
+
+    std::vector< std::map< identifier_t, object_t > > dereference( 
+        const std::vector< std::map< identifier_t, store_id > > bindings )
+    {
+        std::vector< std::map< identifier_t, object_t > > result;
+        for ( const auto &binding : bindings )
+            result.push_back( std::move( dereference( binding ) ) );
+        return result;
     }
 
 };
@@ -573,6 +597,8 @@ struct eval
 
     eval_translator < ast::ast_node, eval > translator;
 
+    bool debug_mode = false;
+
     using bindings_t = eval_state_t::store_t::bindings_t;
 
     void run()
@@ -580,13 +606,15 @@ struct eval
         pprint::PrettyPrinter printer;
         while( !state._cells.empty() )
         {
-            //std::cin.get();
-            //printer.print( "step" );
-            //printer.print( "cells" );
-            //printer.print( state._cells );
-            //printer.print( "values" );
-            //printer.print( state._values );
-            //std::cout << state._store;
+            if ( debug_mode )  {
+                std::cin.get();
+                printer.print( "step" );
+                printer.print( "cells" );
+                printer.print( state._cells );
+                printer.print( "values" );
+                printer.print( state._values );
+                // printer.print( state._store.dereference( state._store.scopes.head->bindings ) );
+            }
             run_top();
         }
     }

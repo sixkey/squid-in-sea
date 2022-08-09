@@ -4,7 +4,7 @@
 #include "pprint.hpp"
 #include "values.hpp"
 
-int main()
+void simple_test()
 {
     eval e;
 
@@ -31,3 +31,8 @@ int main()
     e.run();
 }
 
+
+int main()
+{
+    simple_test();
+}

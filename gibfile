@@ -22,11 +22,20 @@ set all
 for file $(src_files:src/*.cpp:$1)
 out $(file).o
 dep src/$(file).cpp
-cmd $(wrapcc) $(cpp) --std=c++17 -g -c -o $(out) $(srcdir)/$(dep)
+cmd $(wrapcc) $(cpp) --std=c++17 -pg -c -o $(out) $(srcdir)/$(dep)
 
 out squid
 dep $(src_files:src/*.cpp:$1).o
-cmd $(cpp) --std=c++17 -o squid $(dep)
+cmd $(cpp) --std=c++17 -pg -o $(out) $(dep)
+
+for file $(src_files:src/*.cpp:$1)
+out $(file).po
+dep src/$(file).cpp
+cmd $(wrapcc) $(cpp) --std=c++17 --coverage -O2 -pg -c -o $(out) $(srcdir)/$(dep)
+
+out squid-profiling
+dep $(src_files:src/*.cpp:$1).po
+cmd $(cpp) --std=c++17 --coverage -O2 -pg -o $(out) $(dep)
 
 for file $(src_files:src/*.tpp:$1)
 out $(file).to
