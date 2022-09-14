@@ -792,24 +792,24 @@ struct parser
         tpush( "function definition" );
         p_state.req_pop( istype< kw_fun > );
 
-        std::vector< ast::function_path > paths;
+        std::vector< std::shared_ptr< const ast::function_path > > paths;
 
         int arity = 0;
 
         if ( ! p_state.holds( istype< sym_fun_path > ) ) {
             auto fpath = p_funpath_mapping();
             arity = fpath.input_patterns.size();
-            paths.push_back( std::move( fpath ) );
+            paths.push_back( ast::clone( std::move( fpath ) ) );
         }
 
         while ( p_state.holds( istype< sym_fun_path > ) ) {
-            ast::function_path p = p_funpath();
+            auto p = p_funpath();
 
             if ( ! paths.empty() && p.input_patterns.size() != arity )
                 throw parsing_error( "the number of arguments does not match" );
             arity = p.input_patterns.size();
 
-            paths.push_back( std::move( p ) );
+            paths.push_back( ast::clone( std::move( p ) ) );
         }
 
         if ( paths.empty() )

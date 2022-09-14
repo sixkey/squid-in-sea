@@ -359,7 +359,7 @@ public:
     {
         std::vector< function_path< evaluable_t > > paths;
         for ( const auto& f_path : f.paths )
-            paths.push_back( translate_path( f_path, eval ) );
+            paths.push_back( translate_path( *f_path, eval ) );
         return { paths, f.arity };
     }
 

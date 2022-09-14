@@ -30,11 +30,13 @@ namespace ast {
     struct literal_pattern;
     struct variable_pattern;
     struct object_pattern;
+    struct function_path;
 
     using pattern = std::variant< ast::literal_pattern< int >
                                 , ast::literal_pattern< bool >
                                 , ast::variable_pattern
                                 , ast::object_pattern >;
+    using path_ptr = std::shared_ptr< const ast::function_path >;
 
     struct ast_printer;
 
@@ -89,7 +91,7 @@ namespace ast {
 
     struct function_def
     {
-        std::vector< function_path > paths;
+        std::vector< path_ptr > paths;
         int arity;
     };
 
@@ -207,7 +209,7 @@ namespace ast {
                                    , blacklist_t& blacklist )
         {
             for ( const auto& a : def.paths )
-                _free_variables( a, vars, blacklist );
+                _free_variables( *a, vars, blacklist );
         }
 
         static void _free_variables( const let_in& letin
@@ -315,7 +317,7 @@ namespace ast {
             printer.print( "FunctionDef" );
             indent();
             for ( const auto& p : d.paths )
-                accept( p );
+                accept( *p );
             dedent();
         }
 
@@ -331,4 +333,5 @@ namespace ast {
     };
 
     node_ptr clone( const ast_node& a );
+    path_ptr clone( const function_path& a );
 }

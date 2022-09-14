@@ -37,6 +37,15 @@ out squid-profiling
 dep $(src_files:src/*.cpp:$1).po
 cmd $(cpp) --std=c++17 --coverage -O2 -pg -o $(out) $(dep)
 
+for file $(src_files:src/*.cpp:$1)
+out $(file).ro
+dep src/$(file).cpp
+cmd $(wrapcc) $(cpp) --std=c++17 -O2 -c -o $(out) $(srcdir)/$(dep)
+
+out squid-release
+dep $(src_files:src/*.cpp:$1).ro
+cmd $(cpp) --std=c++17 -O2 -o $(out) $(dep)
+
 for file $(src_files:src/*.tpp:$1)
 out $(file).to
 dep src/$(file).tpp
@@ -59,4 +68,4 @@ out tests
 dep test_$(src_files:src/*.tpp:$1)
 cmd $(echo) tests
 
-add all squid tests
+add all squid 
